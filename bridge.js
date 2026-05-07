@@ -451,13 +451,12 @@ bot.on("message", async (msg) => {
     // Text thuần
     promptText = msg.text;
   } else if (msg.photo || msg.document || msg.audio || msg.video || msg.voice) {
-    // File/ảnh từ Telegram -> download về temp/
-    const tempDir = path.join(process.cwd(), "temp");
-    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+    // File/ảnh từ Telegram -> download về files/
+    const uploadDir = path.join(process.cwd(), "files");
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
     let fileId, fileName;
     if (msg.photo) {
-      // Lấy ảnh chất lượng cao nhất (phần tử cuối)
       fileId = msg.photo[msg.photo.length - 1].file_id;
       fileName = `photo_${Date.now()}.jpg`;
     } else if (msg.document) {
@@ -475,11 +474,11 @@ bot.on("message", async (msg) => {
     }
 
     try {
-      const destPath = path.join(tempDir, fileName);
-      await bot.downloadFile(fileId, tempDir);
+      const destPath = path.join(uploadDir, fileName);
+      await bot.downloadFile(fileId, uploadDir);
       // node-telegram-bot-api lưu file theo tên trên server, tìm file mới nhất
       const tgFilePath = await bot.getFile(fileId);
-      const actualPath = path.join(tempDir, path.basename(tgFilePath.file_path));
+      const actualPath = path.join(uploadDir, path.basename(tgFilePath.file_path));
       downloadedFiles.push(actualPath);
       const caption = msg.caption || "";
       promptText = `${caption ? caption + "\n\n" : ""}Tôi vừa gửi cho bạn file: ${actualPath}`;

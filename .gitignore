@@ -6,6 +6,6 @@ RULES.md
 MEMORY.md
 crons.json
 
-# Temp files — Gemini viết script, download từ Telegram
+# Temp files — Gemini viết script tạm
 temp/*
 !temp/.gitkeep
