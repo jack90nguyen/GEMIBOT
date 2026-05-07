@@ -8,8 +8,12 @@ Cầu nối giữa **Gemini CLI** (chạy trên máy Mac/Linux) và **Telegram**
 - **Session management** — Duy trì ngữ cảnh hội thoại xuyên suốt
 - **YOLO mode** — Gemini tự động approve tất cả tool calls, không cần xác nhận thủ công
 - **Model tùy chỉnh** — Cấu hình model qua biến môi trường
-- **RULES.md** — Inject rules/persona vào đầu mỗi session để AI tuân theo đúng quy tắc
+- **System Rules** — Rules hệ thống hardcode trong code, không phụ thuộc file cá nhân
+- **RULES.md** — Inject persona/rules cá nhân hóa vào đầu mỗi session
 - **Cronjob** — Đặt lịch chạy prompt định kỳ, AI tự hiểu và lưu lịch khi user yêu cầu
+- **Gửi/nhận file** — Nhận file từ Telegram, gửi file/ảnh từ Gemini về Telegram qua tag `[SEND_FILE]`
+- **Message Queue** — Xử lý tuần tự, không mất tin khi nhận nhiều message cùng lúc
+- **Thông báo online** — Gửi tin nhắn đến chatId gần nhất khi bot khởi động xong
 - **Debug logs** — Log chi tiết theo thời gian thực để dễ theo dõi
 
 ## Yêu cầu hệ thống
@@ -117,7 +121,15 @@ Dữ liệu lịch được lưu vào `crons.json` và tự động khôi phục
 
 ```
 BOT-Gemini/
-├── bridge.js           # Entry point — toàn bộ logic
+├── bridge.js           # Entry point — bootstrap & wiring
+├── src/
+│   ├── logger.js       # Log helper với timestamp
+│   ├── systemRules.js  # System rules hardcode (cronjob + file tags)
+│   ├── gemini.js       # ACP protocol, spawn process, sendPrompt
+│   ├── cronjob.js      # CRUD + schedule cronjobs
+│   ├── systemTags.js   # Parse [CRONJOB_*] và [SEND_FILE] tags
+│   ├── telegram.js     # Bot instance, sendFile, message handler
+│   └── queue.js        # Message queue, enqueue, processQueue
 ├── RULES.example.md    # Mẫu cấu hình rules/persona cho AI
 ├── MEMORY.example.md   # Mẫu bộ nhớ dài hạn cho AI
 ├── .env.example        # Mẫu cấu hình môi trường
@@ -125,7 +137,7 @@ BOT-Gemini/
 └── README.md
 
 # Các file sau KHÔNG commit lên git (cá nhân hóa của từng user):
-# RULES.md, MEMORY.md, crons.json, .env
+# RULES.md, MEMORY.md, crons.json, state.json, .env
 ```
 
 ## Lưu ý
