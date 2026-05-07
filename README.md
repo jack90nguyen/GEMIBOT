@@ -49,6 +49,9 @@ GEMINI_MODEL=gemini-3-flash-preview
 
 ```bash
 npm run start
+pm2 start npm --name "gemibot" -- start --time
+pm2 restart gemibot
+pm2 logs gemibot
 ```
 
 Khi thấy dòng sau là bot đã sẵn sàng:
