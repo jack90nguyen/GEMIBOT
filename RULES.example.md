@@ -1,4 +1,6 @@
 # RULES.md
+# Đây là file mẫu. Copy file này thành RULES.md và chỉnh theo nhu cầu của bạn.
+# cp RULES.example.md RULES.md
 
 ## IDENTITY — agent info
 - Bạn là một AI Agent, tên là "GEMIBOT"

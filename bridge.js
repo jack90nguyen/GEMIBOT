@@ -195,16 +195,26 @@ function scheduleCron(job) {
       const responseText = await sendPrompt(currentSessionId, job.prompt);
       if (responseText) {
         bot
-          .sendMessage(job.chatId, `⏰ *${job.description}*\n\n${responseText}`, {
-            parse_mode: "Markdown",
-          })
+          .sendMessage(
+            job.chatId,
+            `⏰ *${job.description}*\n\n${responseText}`,
+            {
+              parse_mode: "Markdown",
+            },
+          )
           .catch(() =>
-            bot.sendMessage(job.chatId, `⏰ ${job.description}\n\n${responseText}`)
+            bot.sendMessage(
+              job.chatId,
+              `⏰ ${job.description}\n\n${responseText}`,
+            ),
           );
       }
     } catch (err) {
       log(`[CRON] Error running job id=${job.id}`, err);
-      bot.sendMessage(job.chatId, `❌ Cronjob "${job.description}" gặp lỗi: ${err.message}`);
+      bot.sendMessage(
+        job.chatId,
+        `❌ Cronjob "${job.description}" gặp lỗi: ${err.message}`,
+      );
     }
   });
   scheduledTasks.set(job.id, task);
@@ -262,7 +272,7 @@ function formatCronList(jobs) {
     jobs
       .map(
         (j, i) =>
-          `${i + 1}. \`${j.id}\` — ${j.description}\n   🕐 \`${j.cron}\`\n   💬 _${j.prompt.substring(0, 60)}${j.prompt.length > 60 ? "..." : ""}_`
+          `${i + 1}. \`${j.id}\` — ${j.description}\n   🕐 \`${j.cron}\`\n   💬 _${j.prompt.substring(0, 60)}${j.prompt.length > 60 ? "..." : ""}_`,
       )
       .join("\n\n")
   );
@@ -373,7 +383,7 @@ bot.on("message", async (msg) => {
   // Gửi thông báo đang xử lý
   const loadingMessage = await bot.sendMessage(
     chatId,
-    "⏳ GEMIBOT đang suy nghĩ...",
+    "⏳ GEMIBOT 🤖 đang suy nghĩ...",
   );
   log(`[TELEGRAM] Nhận tin từ chatId=${chatId}`, text.substring(0, 80));
 
