@@ -4,6 +4,7 @@
   "description": "",
   "main": "bridge.js",
   "scripts": {
+    "start": "node bridge.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -12,6 +13,7 @@
   "type": "commonjs",
   "dependencies": {
     "dotenv": "^17.4.2",
+    "node-cron": "^4.2.1",
     "node-telegram-bot-api": "^0.67.0"
   }
 }
