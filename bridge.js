@@ -66,37 +66,28 @@ const IMAGE_EXTS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"]);
 
 // Gửi file hoặc ảnh lên Telegram
 async function sendFileToTelegram(chatId, filePath) {
-  if (!fs.existsSync(filePath)) return false;
-  const ext = path.extname(filePath).toLowerCase();
-  try {
-    if (IMAGE_EXTS.has(ext)) {
-      await bot.sendPhoto(chatId, filePath, { caption: path.basename(filePath) });
-    } else {
-      await bot.sendDocument(chatId, filePath, { caption: path.basename(filePath) });
-    }
-    log(`[FILE] Sent ${filePath} to chatId=${chatId}`);
-    return true;
-  } catch (err) {
-    log(`[FILE] Failed to send ${filePath}`, err.message);
+  const absPath = path.isAbsolute(filePath)
+    ? filePath
+    : path.join(process.cwd(), filePath);
+  if (!fs.existsSync(absPath)) {
+    log(`[FILE] Not found: ${absPath}`);
     return false;
   }
-}
-
-// Parse các file path xuất hiện trong text (absolute hoặc relative ./temp/)
-function extractFilePaths(text) {
-  const patterns = [
-    /(?:^|[\s`'"])((\/[^\s`'")\]]+)|(\.\/(temp|[^\s`'")\]]+\/)[^\s`'")\]]+))/gm,
-  ];
-  const found = new Set();
-  for (const re of patterns) {
-    let m;
-    while ((m = re.exec(text)) !== null) {
-      const p = m[1].trim();
-      // Chỉ lấy những path có extension (file thực sự)
-      if (path.extname(p)) found.add(p);
+  const ext = path.extname(absPath).toLowerCase();
+  try {
+    if (IMAGE_EXTS.has(ext)) {
+      await bot.sendPhoto(chatId, absPath, { caption: path.basename(absPath) });
+    } else {
+      await bot.sendDocument(chatId, absPath, {
+        caption: path.basename(absPath),
+      });
     }
+    log(`[FILE] Sent ${absPath} to chatId=${chatId}`);
+    return true;
+  } catch (err) {
+    log(`[FILE] Failed to send ${absPath}`, err.message);
+    return false;
   }
-  return [...found];
 }
 
 rl.on("line", (line) => {
@@ -124,33 +115,6 @@ rl.on("line", (line) => {
       if (sessionUpdate === "agent_message_chunk" && content) {
         if (content.type === "text" && content.text) {
           pending.chunks.push(content.text);
-        }
-      }
-
-      // Theo dõi file được tạo/sửa qua tool_call_update
-      if (sessionUpdate === "tool_call_update") {
-        // Lấy file path từ locations
-        if (update.locations?.length) {
-          for (const loc of update.locations) {
-            if (loc.filePath) {
-              const absPath = path.isAbsolute(loc.filePath)
-                ? loc.filePath
-                : path.join(process.cwd(), loc.filePath);
-              pending.files.add(absPath);
-              log(`[FILE] Tracked file: ${absPath}`);
-            }
-          }
-        }
-        // Lấy file path từ title (thường là "write_to_file: path/to/file")
-        if (update.title) {
-          const titleMatch = update.title.match(/:\s*(.+\.\w+)$/);
-          if (titleMatch) {
-            const absPath = path.isAbsolute(titleMatch[1])
-              ? titleMatch[1]
-              : path.join(process.cwd(), titleMatch[1].trim());
-            pending.files.add(absPath);
-            log(`[FILE] Tracked from title: ${absPath}`);
-          }
         }
       }
 
@@ -196,7 +160,7 @@ function sendToGemini(method, params = {}) {
 function sendPrompt(sessionId, text) {
   return new Promise((resolve, reject) => {
     // Đăng ký listener trước khi gửi request
-    pendingPrompts.set(sessionId, { resolve: null, reject: null, chunks: [], files: new Set() });
+    pendingPrompts.set(sessionId, { resolve: null, reject: null, chunks: [] });
 
     const id = rpcId++;
     const request = {
@@ -215,11 +179,10 @@ function sendPrompt(sessionId, text) {
         const pending = pendingPrompts.get(sessionId);
         pendingPrompts.delete(sessionId);
         const fullText = pending ? pending.chunks.join("") : "";
-        const files = pending ? [...pending.files] : [];
         log(
-          `[PROMPT DONE] stopReason=${result?.stopReason}, chunks=${pending?.chunks.length}, length=${fullText.length}, files=${files.length}`,
+          `[PROMPT DONE] stopReason=${result?.stopReason}, chunks=${pending?.chunks.length}, length=${fullText.length}`,
         );
-        resolve({ text: fullText, files });
+        resolve({ text: fullText });
       },
       reject: (err) => {
         pendingPrompts.delete(sessionId);
@@ -258,28 +221,18 @@ function scheduleCron(job) {
   }
   const task = cron.schedule(job.cron, async () => {
     log(`[CRON] Triggering job id=${job.id}: ${job.description}`);
-    try {
-      const { text: responseText, files } = await sendPrompt(currentSessionId, job.prompt);
-      if (responseText) {
-        bot
-          .sendMessage(job.chatId, `⏰ *${job.description}*\n\n${responseText}`, {
-            parse_mode: "Markdown",
-          })
-          .catch(() =>
-            bot.sendMessage(job.chatId, `⏰ ${job.description}\n\n${responseText}`)
-          );
-      }
-      // Gửi file nếu có
-      for (const filePath of files) {
-        await sendFileToTelegram(job.chatId, filePath);
-      }
-    } catch (err) {
-      log(`[CRON] Error running job id=${job.id}`, err);
-      bot.sendMessage(
-        job.chatId,
-        `❌ Cronjob "${job.description}" gặp lỗi: ${err.message}`,
-      );
-    }
+    const prefix = `⏰ *${job.description}*\n\n`;
+    // Wrap prompt để gắn prefix vào response
+    const loadingMessage = await bot
+      .sendMessage(job.chatId, "GEMIBOT 🤖 đang xử lý lịch...")
+      .catch(() => null);
+    messageQueue.push({
+      chatId: job.chatId,
+      promptText: job.prompt,
+      loadingMessage: loadingMessage || { message_id: null },
+      prefix,
+    });
+    processQueue();
   });
   scheduledTasks.set(job.id, task);
   log(`[CRON] Scheduled job id=${job.id} "${job.description}" @ ${job.cron}`);
@@ -343,9 +296,18 @@ function formatCronList(jobs) {
 }
 
 // Parse và xử lý các tag CRONJOB từ response của Gemini
-function parseCronjobTags(text, chatId) {
+function parseSystemTags(text, chatId) {
   let cleanText = text;
   let systemReply = null;
+  const filesToSend = [];
+
+  // SEND_FILE
+  const sendFileRegex = /\[SEND_FILE\]([\s\S]*?)\[\/SEND_FILE\]/g;
+  let sfMatch;
+  while ((sfMatch = sendFileRegex.exec(text)) !== null) {
+    cleanText = cleanText.replace(sfMatch[0], "").trim();
+    filesToSend.push(sfMatch[1].trim());
+  }
 
   // CRONJOB_ADD
   const addMatch = text.match(/\[CRONJOB_ADD\]([\s\S]*?)\[\/CRONJOB_ADD\]/);
@@ -386,10 +348,44 @@ function parseCronjobTags(text, chatId) {
     systemReply = formatCronList(jobs);
   }
 
-  return { cleanText, systemReply };
+  return { cleanText, systemReply, filesToSend };
 }
 
 // ─── END CRONJOB MODULE ───────────────────────────────────────────────────────
+
+// ─── SYSTEM RULES ─────────────────────────────────────────────────────────────
+// Rules hệ thống hardcode trong code — không phụ thuộc RULES.md
+const SYSTEM_RULES = `
+## SYSTEM RULES (Bắt buộc tuân theo, không bao giờ bỏ qua)
+
+### 1. CRONJOB MANAGEMENT
+Khi user muốn đặt lịch / tạo nhắc nhở / tạo việc lặp lại:
+- Phân tích yêu cầu và tạo cron expression phù hợp
+- Thêm tag sau vào cuối response:
+[CRONJOB_ADD]{"cron":"<cron_expression>","prompt":"<prompt_to_run>","description":"<mô tả ngắn>"}[/CRONJOB_ADD]
+
+Khi user muốn xem danh sách lịch:
+- Thêm tag sau vào cuối response:
+[CRONJOB_LIST][/CRONJOB_LIST]
+
+Khi user muốn xóa một lịch (cung cấp id):
+- Thêm tag sau vào cuối response:
+[CRONJOB_DEL]{"id":"<job_id>"}[/CRONJOB_DEL]
+
+Cron expression format: "giây phút giờ ngày tháng thứ" (6 fields, node-cron)
+Ví dụ: "0 30 8 * * 1-5" = 8:30 sáng các ngày thứ 2-6
+
+### 2. GỬI FILE VỀ TELEGRAM
+Khi bạn tạo hoặc xuất ra file mà user cần nhận (ảnh, PDF, script, data...):
+- KHÔNG copy toàn bộ nội dung vào chat
+- Thêm tag sau vào cuối response:
+[SEND_FILE]/đường/dẫn/tuyệt/đối/tới/file.ext[/SEND_FILE]
+hoặc dùng relative path từ thư mục làm việc:
+[SEND_FILE]temp/filename.ext[/SEND_FILE]
+
+Ví dụ: Tạo xong chart.png → thêm [SEND_FILE]temp/chart.png[/SEND_FILE]
+`;
+// ─── END SYSTEM RULES ─────────────────────────────────────────────────────────
 
 // Hàm khởi tạo session với Gemini
 async function initGemini() {
@@ -408,14 +404,22 @@ async function initGemini() {
     });
     currentSessionId = sessionData.sessionId;
 
-    // Inject RULES.md vào đầu session nếu file tồn tại
+    // Inject SYSTEM_RULES (hardcode, luôn có)
+    log(`[INIT] Injecting SYSTEM_RULES into session...`);
+    await sendPrompt(
+      currentSessionId,
+      `These are the system rules you must always follow:\n${SYSTEM_RULES}`,
+    );
+    log(`[INIT] SYSTEM_RULES injected successfully`);
+
+    // Inject RULES.md vào đầu session nếu file tồn tại (personalisation)
     const rulesPath = path.join(process.cwd(), "RULES.md");
     if (fs.existsSync(rulesPath)) {
       const rulesContent = fs.readFileSync(rulesPath, "utf-8");
       log(`[INIT] Injecting RULES.md into session...`);
       await sendPrompt(
         currentSessionId,
-        `Please follow these rules for all responses:\n\n${rulesContent}`,
+        `These are personalisation rules from the user:\n\n${rulesContent}`,
       );
       log(`[INIT] RULES.md injected successfully`);
     }
@@ -437,18 +441,104 @@ async function initGemini() {
 // Chạy khởi tạo
 initGemini();
 
+// ─── MESSAGE QUEUE ────────────────────────────────────────────────────────────
+
+const messageQueue = [];
+let isProcessing = false;
+
+// Xử lý một job trong queue: gửi prompt, nhận response, gửi Telegram
+async function handleJob(job) {
+  const { chatId, promptText, loadingMessage, prefix = "" } = job;
+
+  try {
+    const { text: responseText } = await sendPrompt(
+      currentSessionId,
+      promptText,
+    );
+
+    bot.deleteMessage(chatId, loadingMessage.message_id).catch(() => {});
+
+    if (!responseText) {
+      log(`[QUEUE] Không có nội dung phản hồi`);
+      bot.sendMessage(chatId, "Xin lỗi, không có phản hồi từ Gemini.");
+      return;
+    }
+
+    const { cleanText, systemReply, filesToSend } = parseSystemTags(
+      responseText,
+      chatId,
+    );
+
+    if (cleanText) {
+      log(`[QUEUE] Gửi phản hồi, length=${cleanText.length}`);
+      const finalText = prefix + cleanText;
+      bot
+        .sendMessage(chatId, finalText, { parse_mode: "Markdown" })
+        .catch(() => bot.sendMessage(chatId, finalText));
+    }
+
+    if (systemReply) {
+      bot
+        .sendMessage(chatId, systemReply, { parse_mode: "Markdown" })
+        .catch(() => bot.sendMessage(chatId, systemReply));
+    }
+
+    if (filesToSend.length > 0) {
+      log(`[QUEUE] Sending ${filesToSend.length} file(s) to chatId=${chatId}`);
+      for (const filePath of filesToSend) {
+        await sendFileToTelegram(chatId, filePath);
+      }
+    }
+  } catch (error) {
+    console.error("Lỗi khi gọi Gemini:", error);
+    bot.deleteMessage(chatId, loadingMessage.message_id).catch(() => {});
+    const errorMessage = error.message || "Đã xảy ra lỗi không xác định.";
+    bot.sendMessage(
+      chatId,
+      `❌ Lỗi khi giao tiếp với Gemini:\n${errorMessage}`,
+    );
+  }
+}
+
+async function processQueue() {
+  if (isProcessing || messageQueue.length === 0) return;
+  isProcessing = true;
+  const job = messageQueue.shift();
+  log(
+    `[QUEUE] Processing job for chatId=${job.chatId}, queue remaining=${messageQueue.length}`,
+  );
+  try {
+    await handleJob(job);
+  } finally {
+    isProcessing = false;
+    processQueue();
+  }
+}
+
+// Enqueue một job — gửi loading message ngay, rồi đẩy vào hàng đợi
+async function enqueue(chatId, promptText) {
+  const loadingMessage = await bot.sendMessage(
+    chatId,
+    "GEMIBOT 🤖 đang suy nghĩ 🧠...",
+  );
+  log(
+    `[QUEUE] Enqueued for chatId=${chatId}, queue size=${messageQueue.length + 1}`,
+  );
+  messageQueue.push({ chatId, promptText, loadingMessage });
+  processQueue();
+}
+
+// ─── END MESSAGE QUEUE ────────────────────────────────────────────────────────
+
 // Xử lý khi có tin nhắn mới từ Telegram
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
 
   if (!currentSessionId) return;
 
-  // Xác định loại input và build prompt
   let promptText = null;
-  let downloadedFiles = []; // file download từ Telegram về local
 
   if (msg.text) {
-    // Text thuần
     promptText = msg.text;
   } else if (msg.photo || msg.document || msg.audio || msg.video || msg.voice) {
     // File/ảnh từ Telegram -> download về files/
@@ -474,78 +564,29 @@ bot.on("message", async (msg) => {
     }
 
     try {
-      const destPath = path.join(uploadDir, fileName);
       await bot.downloadFile(fileId, uploadDir);
-      // node-telegram-bot-api lưu file theo tên trên server, tìm file mới nhất
       const tgFilePath = await bot.getFile(fileId);
-      const actualPath = path.join(uploadDir, path.basename(tgFilePath.file_path));
-      downloadedFiles.push(actualPath);
+      const actualPath = path.join(
+        uploadDir,
+        path.basename(tgFilePath.file_path),
+      );
       const caption = msg.caption || "";
       promptText = `${caption ? caption + "\n\n" : ""}Tôi vừa gửi cho bạn file: ${actualPath}`;
       log(`[FILE] Downloaded from Telegram: ${actualPath}`);
     } catch (err) {
       log(`[FILE] Download error`, err.message);
-      bot.sendMessage(chatId, `❌ Không thể tải file từ Telegram: ${err.message}`);
+      bot.sendMessage(
+        chatId,
+        `❌ Không thể tải file từ Telegram: ${err.message}`,
+      );
       return;
     }
   }
 
   if (!promptText) return;
 
-  // Gửi thông báo đang xử lý
-  const loadingMessage = await bot.sendMessage(chatId, "⏳ GEMIBOT 🤖 đang suy nghĩ...");
   log(`[TELEGRAM] Nhận tin từ chatId=${chatId}`, promptText.substring(0, 80));
-
-  try {
-    // Gửi prompt và đợi kết quả
-    const { text: responseText, files: trackedFiles } = await sendPrompt(currentSessionId, promptText);
-
-    // Xóa tin nhắn "đang suy nghĩ"
-    bot.deleteMessage(chatId, loadingMessage.message_id).catch(() => {});
-
-    if (!responseText && trackedFiles.length === 0) {
-      log(`[TELEGRAM] Không có nội dung phản hồi`);
-      bot.sendMessage(chatId, "Xin lỗi, không có phản hồi từ Gemini.");
-      return;
-    }
-
-    // Parse cronjob tags từ response
-    const { cleanText, systemReply } = parseCronjobTags(responseText, chatId);
-
-    // Gửi nội dung text chính (nếu có)
-    if (cleanText) {
-      log(`[TELEGRAM] Gửi phản hồi, length=${cleanText.length}`);
-      // Thêm các file path từ text vào danh sách gửi
-      const textFilePaths = extractFilePaths(cleanText);
-      for (const p of textFilePaths) trackedFiles.push(p);
-
-      bot
-        .sendMessage(chatId, cleanText, { parse_mode: "Markdown" })
-        .catch(() => bot.sendMessage(chatId, cleanText));
-    }
-
-    // Gửi thông báo kết quả cronjob action (nếu có)
-    if (systemReply) {
-      log(`[TELEGRAM] Gửi cronjob reply`);
-      bot
-        .sendMessage(chatId, systemReply, { parse_mode: "Markdown" })
-        .catch(() => bot.sendMessage(chatId, systemReply));
-    }
-
-    // Gửi các file Gemini đã tạo/sửa
-    if (trackedFiles.length > 0) {
-      log(`[FILE] Sending ${trackedFiles.length} file(s) to chatId=${chatId}`);
-      for (const filePath of trackedFiles) {
-        await sendFileToTelegram(chatId, filePath);
-      }
-    }
-  } catch (error) {
-    console.error("Lỗi khi gọi Gemini:", error);
-    bot.deleteMessage(chatId, loadingMessage.message_id).catch(() => {});
-
-    const errorMessage = error.message || "Đã xảy ra lỗi không xác định.";
-    bot.sendMessage(chatId, `❌ Lỗi khi giao tiếp với Gemini:\n${errorMessage}`);
-  }
+  await enqueue(chatId, promptText);
 });
 
 // Xử lý dọn dẹp khi tắt ứng dụng bằng Ctrl+C
