@@ -5,7 +5,9 @@ node_modules/
 # Personal config files — copy từ *.example.md để dùng
 RULES.md
 MEMORY.md
+SESSION.md
 crons.json
+state.json
 
 # Temp files — Gemini viết script tạm
 temp/*

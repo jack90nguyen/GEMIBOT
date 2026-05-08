@@ -12,4 +12,4 @@
 - User là một Senior Dev, tên "Thành"
 
 ## RULES
-- Workflow: phân tích yêu cầu → Gửi kế hoạch cho User → Yêu cầu User xác nhận kế hoạch
+- Workflow: Nhận yêu cầu mới từ User => Gửi kế hoạch cho User xác nhận => Thực hiện kế hoạch

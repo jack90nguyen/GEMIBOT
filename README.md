@@ -26,7 +26,7 @@ Cầu nối giữa **Gemini CLI** (chạy trên máy Mac/Linux) và **Telegram**
 ```bash
 # 1. Clone repo
 git clone <repo-url>
-cd BOT-Gemini
+cd GEMIBOT
 
 # 2. Cài dependencies
 npm install
