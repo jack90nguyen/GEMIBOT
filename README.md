@@ -120,7 +120,7 @@ Dữ liệu lịch được lưu vào `crons.json` và tự động khôi phục
 ## Cấu trúc project
 
 ```
-BOT-Gemini/
+GEMIBOT/
 ├── bridge.js           # Entry point — bootstrap & wiring
 ├── src/
 │   ├── logger.js       # Log helper với timestamp
