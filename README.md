@@ -124,10 +124,10 @@ BOT-Gemini/
 ├── bridge.js           # Entry point — bootstrap & wiring
 ├── src/
 │   ├── logger.js       # Log helper với timestamp
-│   ├── systemRules.js  # System rules hardcode (cronjob + file tags)
+│   ├── prompts.js      # System rules hardcode (cronjob + file tags)
 │   ├── gemini.js       # ACP protocol, spawn process, sendPrompt
 │   ├── cronjob.js      # CRUD + schedule cronjobs
-│   ├── systemTags.js   # Parse [CRONJOB_*] và [SEND_FILE] tags
+│   ├── tags.js         # Parse [CRONJOB_*] và [SEND_FILE] tags
 │   ├── telegram.js     # Bot instance, sendFile, message handler
 │   └── queue.js        # Message queue, enqueue, processQueue
 ├── RULES.example.md    # Mẫu cấu hình rules/persona cho AI

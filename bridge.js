@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 
 const { log } = require("./src/logger");
-const { SYSTEM_RULES } = require("./src/systemRules");
+const { SYSTEM_RULES } = require("./src/prompts");
 const gemini = require("./src/gemini");
 const { bot, setupMessageHandler, getLastChatId } = require("./src/telegram");
 const { scheduleAllCrons, setEnqueue } = require("./src/cronjob");
@@ -39,6 +39,19 @@ async function main() {
       log(`[INIT] Injecting RULES.md into session...`);
       await gemini.sendPrompt(`These are personalisation rules from the user:\n\n${rulesContent}`);
       log(`[INIT] RULES.md injected successfully`);
+    }
+
+    // Inject SESSION.md nếu tồn tại (lịch sử chat của user)
+    const sessionPath = path.join(process.cwd(), "SESSION.md");
+    if (fs.existsSync(sessionPath)) {
+      const sessionHistory = fs.readFileSync(sessionPath, "utf-8").trim();
+      if (sessionHistory) {
+        log(`[INIT] Injecting SESSION.md into session...`);
+        await gemini.sendPrompt(
+          `Đây là lịch sử các tin nhắn trước đó của user (chỉ chứa tin nhắn của user, không có response của AI). Hãy dùng context này để hiểu ngữ cảnh nếu user nhắc lại chủ đề cũ:\n\n${sessionHistory}`
+        );
+        log(`[INIT] SESSION.md injected successfully`);
+      }
     }
 
     // Khởi động lại các cronjob đã lưu

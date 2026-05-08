@@ -26,7 +26,28 @@ function saveLastChatId(chatId) {
   saveState({ lastChatId: chatId });
 }
 
-const token = process.env.TELEGRAM_BOT_TOKEN;
+const SESSION_FILE = path.join(process.cwd(), "SESSION.md");
+const SESSION_LIMIT = parseInt(process.env.SESSION_HISTORY_LIMIT || "100", 10);
+
+function appendSession(text) {
+  const timestamp = new Date().toISOString().replace("T", " ").substring(0, 19);
+  const line = `[${timestamp}] ${text.replace(/\n/g, " ")}`;
+
+  // Đọc các dòng hiện có
+  let lines = [];
+  if (fs.existsSync(SESSION_FILE)) {
+    lines = fs.readFileSync(SESSION_FILE, "utf-8").split("\n").filter(Boolean);
+  }
+
+  lines.push(line);
+
+  // Giữ lại N dòng cuối
+  if (lines.length > SESSION_LIMIT) {
+    lines = lines.slice(lines.length - SESSION_LIMIT);
+  }
+
+  fs.writeFileSync(SESSION_FILE, lines.join("\n") + "\n", "utf-8");
+}
 
 if (!token || token === "YOUR_TELEGRAM_BOT_TOKEN_HERE") {
   console.error("❌ Lỗi: Bạn chưa cấu hình TELEGRAM_BOT_TOKEN trong file .env");
@@ -123,6 +144,7 @@ function setupMessageHandler(enqueue, getSessionId) {
     if (!promptText) return;
 
     log(`[TELEGRAM] Nhận tin từ chatId=${chatId}`, promptText.substring(0, 80));
+    appendSession(promptText);
     await enqueue(chatId, promptText);
   });
 }

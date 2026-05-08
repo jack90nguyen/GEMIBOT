@@ -1,7 +1,7 @@
 const { log } = require("./logger");
 const { sendPrompt } = require("./gemini");
 const { bot, sendFileToTelegram } = require("./telegram");
-const { parseSystemTags } = require("./systemTags");
+const { parseSystemTags } = require("./tags");
 
 const messageQueue = [];
 let isProcessing = false;
