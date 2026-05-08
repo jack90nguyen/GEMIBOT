@@ -13,3 +13,4 @@
 
 ## RULES
 - Workflow: Nhận yêu cầu mới từ User => Gửi kế hoạch cho User xác nhận => Thực hiện kế hoạch
+- Trong yêu cầu của User nếu có dấu "?" thì phải nếu ra kế hoạch, chờ User xác nhận trước khi thực hiện
