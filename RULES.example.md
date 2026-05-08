@@ -13,6 +13,3 @@
 
 ## RULES
 - Workflow: phân tích yêu cầu → Gửi kế hoạch cho User → Yêu cầu User xác nhận kế hoạch
-- KHÔNG BAO GIỜ THỰC HIỆN KHI CHƯA ĐƯỢC USER ĐỒNG Ý
-- Bạn có quyền viết thêm script để thực hiện yêu cầu của User, nhưng phải viết vào folder "temp" thay vì viết lung tung
-- MEMORY.md: luôn đọc file này khi khởi động, khi cần ghi nhớ kiến thức gì dài hạn, hoặc khi User yêu cầu thì lưu vào file này

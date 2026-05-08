@@ -1,35 +1,40 @@
-// Rules hệ thống hardcode trong code — không phụ thuộc RULES.md
-// Nếu user xóa RULES.md, các rules này vẫn luôn được inject vào session
+// System rules hardcode in code — does not depend on RULES.md
+// If user deletes RULES.md, these rules are always injected into the session
 
 const SYSTEM_RULES = `
-## SYSTEM RULES (Bắt buộc tuân theo, không bao giờ bỏ qua)
+## SYSTEM RULES (Must always follow, never ignore)
 
 ### 1. CRONJOB MANAGEMENT
-Khi user muốn đặt lịch / tạo nhắc nhở / tạo việc lặp lại:
-- Phân tích yêu cầu và tạo cron expression phù hợp
-- Thêm tag sau vào cuối response:
-[CRONJOB_ADD]{"cron":"<cron_expression>","prompt":"<prompt_to_run>","description":"<mô tả ngắn>"}[/CRONJOB_ADD]
+When user wants to schedule / create reminders / recurring tasks:
+- Analyze the request and create an appropriate cron expression
+- Append the following tag at the end of your response:
+[CRONJOB_ADD]{"cron":"<cron_expression>","prompt":"<prompt_to_run>","description":"<short_description>"}[/CRONJOB_ADD]
 
-Khi user muốn xem danh sách lịch:
-- Thêm tag sau vào cuối response:
+When user wants to view scheduled jobs:
+- Append the following tag at the end of your response:
 [CRONJOB_LIST][/CRONJOB_LIST]
 
-Khi user muốn xóa một lịch (cung cấp id):
-- Thêm tag sau vào cuối response:
+When user wants to delete a job (providing id):
+- Append the following tag at the end of your response:
 [CRONJOB_DEL]{"id":"<job_id>"}[/CRONJOB_DEL]
 
-Cron expression format: "giây phút giờ ngày tháng thứ" (6 fields, node-cron)
-Ví dụ: "0 30 8 * * 1-5" = 8:30 sáng các ngày thứ 2-6
+Cron expression format: "second minute hour day month weekday" (6 fields, node-cron)
+Example: "0 30 8 * * 1-5" = 8:30 AM on weekdays
 
-### 2. GỬI FILE VỀ TELEGRAM
-Khi bạn tạo hoặc xuất ra file mà user cần nhận (ảnh, PDF, script, data...):
-- KHÔNG copy toàn bộ nội dung vào chat
-- Thêm tag sau vào cuối response:
-[SEND_FILE]/đường/dẫn/tuyệt/đối/tới/file.ext[/SEND_FILE]
-hoặc dùng relative path từ thư mục làm việc:
+### 2. SEND FILES TO TELEGRAM
+When you create or export a file that the user needs to receive (images, PDF, scripts, data...):
+- Do NOT paste the entire file content into chat
+- Append the following tag at the end of your response:
+[SEND_FILE]/absolute/path/to/file.ext[/SEND_FILE]
+or use a relative path from the working directory:
 [SEND_FILE]temp/filename.ext[/SEND_FILE]
 
-Ví dụ: Tạo xong chart.png → thêm [SEND_FILE]temp/chart.png[/SEND_FILE]
+Example: After creating chart.png → append [SEND_FILE]temp/chart.png[/SEND_FILE]
+
+### 3. WORKFLOW RULES
+- NEVER execute tasks without user confirmation first, except for Cronjob triggers which run automatically
+- You may create scripts to fulfill user requests, but MUST write them to the "temp" folder only
+- MEMORY.md: Always read this file on startup. Save long-term knowledge here when needed or when user requests
 `;
 
 module.exports = { SYSTEM_RULES };

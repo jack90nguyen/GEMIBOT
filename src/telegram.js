@@ -49,6 +49,8 @@ function appendSession(text) {
   fs.writeFileSync(SESSION_FILE, lines.join("\n") + "\n", "utf-8");
 }
 
+const token = process.env.TELEGRAM_BOT_TOKEN;
+
 if (!token || token === "YOUR_TELEGRAM_BOT_TOKEN_HERE") {
   console.error("❌ Lỗi: Bạn chưa cấu hình TELEGRAM_BOT_TOKEN trong file .env");
   console.error(
