@@ -148,4 +148,4 @@ GEMIBOT/
 
 ## Giấy phép
 
-Mã nguồn cung cấp cho mục đích học tập và cá nhân.
+> Developed by jack90nguyen (Thành DEV)
