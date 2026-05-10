@@ -10,6 +10,9 @@ SESSION.md
 crons.json
 state.json
 
-# Temp files — Gemini viết script tạm
+# Skill files — các file skill của BOT
+skills/*
+
+# Temp files — BOT viết script tạm
 temp/*
 !temp/.gitkeep

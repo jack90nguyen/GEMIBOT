@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 
 const { log } = require("./src/logger");
+const { MESSAGES, getBotName } = require("./src/constants");
 const { SYSTEM_RULES } = require("./src/prompts");
 const gemini = require("./src/gemini");
 const { bot, setupMessageHandler, getLastChatId } = require("./src/telegram");
@@ -12,7 +13,7 @@ const { enqueue } = require("./src/queue");
 // Bắt lỗi nếu tiến trình Gemini bị crash
 gemini.geminiProcess.on("exit", (code) => {
   console.error(`❌ Tiến trình Gemini CLI đã thoát với mã: ${code}`);
-  console.error("Dừng Bot Telegram để đảm bảo an toàn.");
+  console.error(MESSAGES.GEMINI_PROCESS_HALT);
   bot.stopPolling();
   process.exit(code || 1);
 });
@@ -22,7 +23,7 @@ setEnqueue(enqueue);
 
 // Khởi động
 async function main() {
-  console.log("Đang khởi động Gemini CLI trong nền...");
+  console.log(MESSAGES.STARTING_GEMINI);
 
   try {
     await gemini.init();
@@ -61,19 +62,19 @@ async function main() {
     setupMessageHandler(enqueue, gemini.getSessionId);
 
     const geminiModel = process.env.GEMINI_MODEL;
-    console.log(`✅ Đã kết nối thành công với Gemini CLI!`);
+    console.log(MESSAGES.CONNECTED_OK);
     console.log(`🔄 Session ID: ${gemini.getSessionId()}`);
     if (geminiModel) console.log(`🧠 Model: ${geminiModel}`);
-    console.log("🤖 Bot Telegram đã sẵn sàng nhận tin nhắn!");
+    console.log(MESSAGES.BOT_READY);
 
     // Thông báo online đến chatId gần nhất
     const lastChatId = getLastChatId();
     if (lastChatId) {
-      bot.sendMessage(lastChatId, "GEMIBOT 🤖 đã online, sẳn sàng đợi lệnh!");
+      bot.sendMessage(lastChatId, `${getBotName()} ${MESSAGES.ONLINE}`);
       log(`[INIT] Sent online notification to chatId=${lastChatId}`);
     }
   } catch (err) {
-    console.error("❌ Lỗi khi khởi tạo Gemini:", JSON.stringify(err, null, 2));
+    console.error(MESSAGES.GEMINI_INIT_ERROR, JSON.stringify(err, null, 2));
     bot.stopPolling();
     process.exit(1);
   }
@@ -83,7 +84,7 @@ main();
 
 // Dọn dẹp khi tắt bằng Ctrl+C
 process.on("SIGINT", () => {
-  console.log("\nĐang tắt Gemini CLI và Bot Telegram...");
+  console.log(MESSAGES.SHUTTING_DOWN);
   bot.stopPolling();
   gemini.kill();
   process.exit();

@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const TelegramBot = require("node-telegram-bot-api");
 const { log } = require("./logger");
+const { MESSAGES } = require("./constants");
 
 const STATE_FILE = path.join(process.cwd(), "state.json");
 
@@ -52,10 +53,8 @@ function appendSession(text) {
 const token = process.env.TELEGRAM_BOT_TOKEN;
 
 if (!token || token === "YOUR_TELEGRAM_BOT_TOKEN_HERE") {
-  console.error("❌ Lỗi: Bạn chưa cấu hình TELEGRAM_BOT_TOKEN trong file .env");
-  console.error(
-    "Vui lòng mở file .env và thay thế YOUR_TELEGRAM_BOT_TOKEN_HERE bằng token thật của bạn.",
-  );
+  console.error(MESSAGES.MISSING_TOKEN);
+  console.error(MESSAGES.MISSING_TOKEN_HINT);
   process.exit(1);
 }
 
@@ -100,7 +99,7 @@ function setupMessageHandler(enqueue, getSessionId) {
     if (!getSessionId()) return;
 
     // Lưu lại chatId gần nhất để dùng khi bot restart
-    saveLastChatId(chatId);
+    if (msg.chat.type === "private") saveLastChatId(chatId);
 
     let promptText = null;
 

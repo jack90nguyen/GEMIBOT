@@ -1,4 +1,5 @@
 const { log } = require("./logger");
+const { MESSAGES, getBotName } = require("./constants");
 const { sendPrompt } = require("./gemini");
 const { bot, sendFileToTelegram } = require("./telegram");
 const { parseSystemTags } = require("./tags");
@@ -18,7 +19,7 @@ async function handleJob(job) {
 
     if (!responseText) {
       log(`[QUEUE] Không có nội dung phản hồi`);
-      bot.sendMessage(chatId, "Xin lỗi, không có phản hồi từ Gemini.");
+      bot.sendMessage(chatId, MESSAGES.NO_RESPONSE);
       return;
     }
 
@@ -45,9 +46,9 @@ async function handleJob(job) {
       }
     }
   } catch (error) {
-    console.error("Lỗi khi gọi Gemini:", error);
+    console.error(MESSAGES.GEMINI_CALL_ERROR, error);
     bot.deleteMessage(chatId, loadingMessage.message_id).catch(() => {});
-    const errorMessage = error.message || "Đã xảy ra lỗi không xác định.";
+    const errorMessage = error.message || MESSAGES.UNKNOWN_ERROR;
     bot.sendMessage(chatId, `❌ Lỗi khi giao tiếp với Gemini:\n${errorMessage}`);
   }
 }
@@ -70,7 +71,7 @@ async function processQueue() {
 }
 
 async function enqueue(chatId, promptText, prefix = "") {
-  const loadingMessage = await bot.sendMessage(chatId, "GEMIBOT 🤖 đang suy nghĩ 🧠...");
+  const loadingMessage = await bot.sendMessage(chatId, `${getBotName()} ${MESSAGES.THINKING}`);
   log(`[QUEUE] Enqueued for chatId=${chatId}, queue size=${messageQueue.length + 1}`);
   messageQueue.push({ chatId, promptText, loadingMessage, prefix });
   processQueue();

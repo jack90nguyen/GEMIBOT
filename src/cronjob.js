@@ -3,6 +3,7 @@ const path = require("path");
 const cron = require("node-cron");
 const { randomUUID } = require("crypto");
 const { log } = require("./logger");
+const { MESSAGES } = require("./constants");
 
 const CRONS_FILE = path.join(process.cwd(), "crons.json");
 const scheduledTasks = new Map(); // id -> node-cron task
@@ -99,9 +100,9 @@ function getCronsForChat(chatId) {
 // ─── Formatting ───────────────────────────────────────────────────────────────
 
 function formatCronList(jobs) {
-  if (jobs.length === 0) return "📭 Bạn chưa có cronjob nào.";
+  if (jobs.length === 0) return MESSAGES.CRON_LIST_EMPTY;
   return (
-    "📋 *Danh sách cronjob của bạn:*\n\n" +
+    MESSAGES.CRON_LIST_HEADER +
     jobs
       .map(
         (j, i) =>
