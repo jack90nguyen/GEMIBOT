@@ -8,6 +8,8 @@ Cầu nối giữa **Gemini CLI** (chạy trên máy Mac/Linux) và **Telegram**
 - **Session management** — Duy trì ngữ cảnh hội thoại xuyên suốt
 - **YOLO mode** — Gemini tự động approve tất cả tool calls, không cần xác nhận thủ công
 - **Model tùy chỉnh** — Cấu hình model qua biến môi trường
+- **Tên bot tuỳ chỉnh** — Đổi tên hiển thị trong tin nhắn qua biến `BOT_NAME`
+- **Group chat** — Cấu hình bot tự động reply hoặc chỉ reply khi được @tag/reply
 - **System Rules** — Rules hệ thống hardcode trong code, không phụ thuộc file cá nhân
 - **RULES.md** — Inject persona/rules cá nhân hóa vào đầu mỗi session
 - **Cronjob** — Đặt lịch chạy prompt định kỳ, AI tự hiểu và lưu lịch khi user yêu cầu
@@ -47,6 +49,12 @@ TELEGRAM_BOT_TOKEN=your_token_here
 
 # Tuỳ chọn — model mặc định khi khởi động
 GEMINI_MODEL=gemini-3-flash-preview
+
+# Tuỳ chọn — tên hiển thị của bot trong tin nhắn (mặc định: GEMIBOT 🤖)
+BOT_NAME=GEMIBOT 🤖
+
+# Tuỳ chọn — chế độ trả lời trong group: "mention" (chỉ khi @tag hoặc reply, mặc định) hoặc "always"
+GROUP_REPLY_MODE=mention
 ```
 
 ## Cách chạy
@@ -124,6 +132,7 @@ GEMIBOT/
 ├── bridge.js           # Entry point — bootstrap & wiring
 ├── src/
 │   ├── logger.js       # Log helper với timestamp
+│   ├── constants.js    # Tất cả text/message dùng trong bot
 │   ├── prompts.js      # System rules hardcode (cronjob + file tags)
 │   ├── gemini.js       # ACP protocol, spawn process, sendPrompt
 │   ├── cronjob.js      # CRUD + schedule cronjobs

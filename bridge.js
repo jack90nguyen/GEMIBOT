@@ -6,7 +6,7 @@ const { log } = require("./src/logger");
 const { MESSAGES, getBotName } = require("./src/constants");
 const { SYSTEM_RULES } = require("./src/prompts");
 const gemini = require("./src/gemini");
-const { bot, setupMessageHandler, getLastChatId } = require("./src/telegram");
+const { bot, setupMessageHandler, getLastChatId, initBotInfo } = require("./src/telegram");
 const { scheduleAllCrons, setEnqueue } = require("./src/cronjob");
 const { enqueue } = require("./src/queue");
 
@@ -57,6 +57,9 @@ async function main() {
 
     // Khởi động lại các cronjob đã lưu
     scheduleAllCrons();
+
+    // Lấy thông tin bot để xử lý mention trong group
+    await initBotInfo();
 
     // Setup Telegram message handler
     setupMessageHandler(enqueue, gemini.getSessionId);

@@ -60,6 +60,42 @@ if (!token || token === "YOUR_TELEGRAM_BOT_TOKEN_HERE") {
 
 const bot = new TelegramBot(token, { polling: true });
 
+const GROUP_REPLY_MODE = (process.env.GROUP_REPLY_MODE || "mention").toLowerCase();
+
+// ─── Bot Identity ─────────────────────────────────────────────────────────────
+
+let botInfo = null;
+
+async function initBotInfo() {
+  botInfo = await bot.getMe();
+  log(`[INIT] Bot identity: @${botInfo.username} (id=${botInfo.id})`);
+}
+
+function findBotMention(msg) {
+  const entities = msg.entities || msg.caption_entities || [];
+  const text = msg.text || msg.caption || "";
+  for (const e of entities) {
+    if (e.type === "mention") {
+      const at = text.substring(e.offset, e.offset + e.length);
+      if (at === `@${botInfo.username}`) return e;
+    } else if (e.type === "text_mention" && e.user?.id === botInfo.id) {
+      return e;
+    }
+  }
+  return null;
+}
+
+function isReplyToBot(msg) {
+  return msg.reply_to_message?.from?.id === botInfo.id;
+}
+
+function stripMention(text, entity) {
+  if (!text || !entity) return text || "";
+  const before = text.substring(0, entity.offset);
+  const after = text.substring(entity.offset + entity.length);
+  return (before + after).replace(/\s+/g, " ").trim();
+}
+
 // ─── File Sending ─────────────────────────────────────────────────────────────
 
 const IMAGE_EXTS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"]);
@@ -98,13 +134,22 @@ function setupMessageHandler(enqueue, getSessionId) {
 
     if (!getSessionId()) return;
 
+    const isPrivate = msg.chat.type === "private";
+    let mention = null;
+    if (!isPrivate) {
+      mention = findBotMention(msg);
+      if (GROUP_REPLY_MODE !== "always") {
+        if (!mention && !isReplyToBot(msg)) return;
+      }
+    }
+
     // Lưu lại chatId gần nhất để dùng khi bot restart
-    if (msg.chat.type === "private") saveLastChatId(chatId);
+    if (isPrivate) saveLastChatId(chatId);
 
     let promptText = null;
 
     if (msg.text) {
-      promptText = msg.text;
+      promptText = mention ? stripMention(msg.text, mention) : msg.text;
     } else if (msg.photo || msg.document || msg.audio || msg.video || msg.voice) {
       // Download file về thư mục files/
       const uploadDir = path.join(process.cwd(), "files");
@@ -132,7 +177,8 @@ function setupMessageHandler(enqueue, getSessionId) {
         await bot.downloadFile(fileId, uploadDir);
         const tgFilePath = await bot.getFile(fileId);
         const actualPath = path.join(uploadDir, path.basename(tgFilePath.file_path));
-        const caption = msg.caption || "";
+        const rawCaption = msg.caption || "";
+        const caption = mention ? stripMention(rawCaption, mention) : rawCaption;
         promptText = `${caption ? caption + "\n\n" : ""}Tôi vừa gửi cho bạn file: ${actualPath}`;
         log(`[FILE] Downloaded from Telegram: ${actualPath}`);
       } catch (err) {
@@ -150,4 +196,4 @@ function setupMessageHandler(enqueue, getSessionId) {
   });
 }
 
-module.exports = { bot, sendFileToTelegram, setupMessageHandler, getLastChatId };
+module.exports = { bot, sendFileToTelegram, setupMessageHandler, getLastChatId, initBotInfo };
