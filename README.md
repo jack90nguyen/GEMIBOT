@@ -60,11 +60,38 @@ GROUP_REPLY_MODE=mention
 ## Cách chạy
 
 ```bash
+# Chạy foreground (debug / thử nghiệm)
 npm run start
-pm2 start npm --name "gemibot" -- start --time
-pm2 restart gemibot
-pm2 logs gemibot
 ```
+
+### Chạy nền như service (khuyến nghị)
+
+Bot sẽ tự động **restart khi crash** và **tự start lại khi boot máy / login**.
+
+```bash
+# Cài và khởi động service
+npm run service:install
+
+# Kiểm tra trạng thái
+npm run service:status
+
+# Gỡ cài đặt
+npm run service:uninstall
+```
+
+**macOS** — không cần sudo. Dùng `launchd` LaunchAgent (user-level).
+
+```bash
+# Xem log
+tail -f logs/gemibot.log
+tail -f logs/gemibot.err.log
+```
+
+**Windows** — mở terminal (PowerShell / CMD) **as Administrator** rồi chạy `npm run service:install`. Dùng Windows Service qua `node-windows`.
+
+> **Lưu ý Windows**: nếu Gemini CLI báo lỗi xác thực, mở `scripts/service-win.js`, bỏ comment block `logOnAs` và điền username/password của user Windows, rồi chạy lại `service:install`.
+>
+> Xem log: vào **services.msc** → GEMIBOT → Properties, hoặc xem thư mục `daemon/` trong project.
 
 Khi thấy dòng sau là bot đã sẵn sàng:
 
@@ -130,6 +157,10 @@ Dữ liệu lịch được lưu vào `crons.json` và tự động khôi phục
 ```
 GEMIBOT/
 ├── bridge.js           # Entry point — bootstrap & wiring
+├── scripts/
+│   ├── service.js      # Entrypoint: detect platform, dispatch
+│   ├── service-mac.js  # macOS launchd installer
+│   └── service-win.js  # Windows service installer (node-windows)
 ├── src/
 │   ├── logger.js       # Log helper với timestamp
 │   ├── constants.js    # Tất cả text/message dùng trong bot

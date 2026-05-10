@@ -16,3 +16,8 @@ skills/*
 # Temp files — BOT viết script tạm
 temp/*
 !temp/.gitkeep
+
+# Service files
+logs/
+daemon/
+*.exe

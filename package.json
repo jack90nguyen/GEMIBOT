@@ -5,6 +5,9 @@
   "main": "bridge.js",
   "scripts": {
     "start": "node bridge.js",
+    "service:install": "node scripts/service.js install",
+    "service:uninstall": "node scripts/service.js uninstall",
+    "service:status": "node scripts/service.js status",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -15,5 +18,8 @@
     "dotenv": "^17.4.2",
     "node-cron": "^4.2.1",
     "node-telegram-bot-api": "^0.67.0"
+  },
+  "optionalDependencies": {
+    "node-windows": "^1.0.0"
   }
 }
