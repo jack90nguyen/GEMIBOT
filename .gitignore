@@ -1,23 +1,19 @@
+# Folders
 node_modules/
-.env
-.DS_Store
-GEMINI.md
+temp/
+logs/
+daemon/
+.gemini/
 
-# Personal config files — copy từ *.example.md để dùng
+# Files App
 RULES.md
 MEMORY.md
 SESSION.md
 crons.json
 state.json
 
-# Skill files — các file skill của BOT
-skills/*
-
-# Temp files — BOT viết script tạm
-temp/*
-!temp/.gitkeep
-
-# Service files
-logs/
-daemon/
+# Files Others
+GEMINI.md
+.env
+.DS_Store
 *.exe
