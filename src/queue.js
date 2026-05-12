@@ -1,5 +1,5 @@
 const { log } = require("./logger");
-const { MESSAGES } = require("./constants");
+const { MESSAGES, getReactionEmoji } = require("./constants");
 const { sendPrompt } = require("./gemini");
 const { bot, reactToMessage, sendFileToTelegram } = require("./telegram");
 const { parseSystemTags } = require("./tags");
@@ -69,7 +69,7 @@ async function processQueue() {
 
 async function enqueue(chatId, promptText, prefix = "", messageId = null) {
   if (messageId) {
-    reactToMessage(chatId, messageId, "👀");
+    reactToMessage(chatId, messageId, getReactionEmoji());
   }
   log(`[QUEUE] Enqueued for chatId=${chatId}, queue size=${messageQueue.length + 1}`);
   messageQueue.push({ chatId, promptText, prefix });

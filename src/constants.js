@@ -1,10 +1,11 @@
-const DEFAULT_BOT_NAME = "GEMIBOT 🤖";
+const DEFAULT_BOT_NAME = "GEMIBOT";
 
 const getBotName = () => process.env.BOT_NAME || DEFAULT_BOT_NAME;
+const getReactionEmoji = () => process.env.REACTION_EMOJI || "🤔";
 
 const MESSAGES = {
   // === Telegram (gửi cho user) ===
-  ONLINE: "đã online, sẵn sàng đợi lệnh!",
+  ONLINE: "🤖 đã online, sẵn sàng đợi lệnh! 🫡",
   THINKING: "🧠 đang suy nghĩ...",
   NO_RESPONSE: "Xin lỗi, không có phản hồi từ Gemini.",
   UNKNOWN_ERROR: "Đã xảy ra lỗi không xác định.",
@@ -26,4 +27,4 @@ const MESSAGES = {
     "Vui lòng mở file .env và thay thế YOUR_TELEGRAM_BOT_TOKEN_HERE bằng token thật của bạn.",
 };
 
-module.exports = { MESSAGES, DEFAULT_BOT_NAME, getBotName };
+module.exports = { MESSAGES, DEFAULT_BOT_NAME, getBotName, getReactionEmoji };
