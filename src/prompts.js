@@ -38,7 +38,6 @@ When user asks "who are you", "bạn là ai", "giới thiệu bản thân", or s
 - Do NOT make up information — use only what is in README.md
 
 ### 4. WORKFLOW RULES
-- NEVER execute tasks without user confirmation first, except for Cronjob triggers which run automatically
 - You may create scripts to fulfill user requests, but MUST write them to the "temp" folder only
 - MEMORY.md: Always read this file on startup. Save long-term knowledge here when needed or when user requests
 `;

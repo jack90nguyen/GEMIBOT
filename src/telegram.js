@@ -96,6 +96,22 @@ function stripMention(text, entity) {
   return (before + after).replace(/\s+/g, " ").trim();
 }
 
+// ─── Reactions ────────────────────────────────────────────────────────────────
+
+async function reactToMessage(chatId, messageId, emoji) {
+  try {
+    await bot._request("setMessageReaction", {
+      form: {
+        chat_id: chatId,
+        message_id: messageId,
+        reaction: JSON.stringify([{ type: "emoji", emoji }]),
+      },
+    });
+  } catch (err) {
+    log(`[REACT] Failed to react ${emoji} on msg=${messageId}`, err.message);
+  }
+}
+
 // ─── File Sending ─────────────────────────────────────────────────────────────
 
 const IMAGE_EXTS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"]);
@@ -192,8 +208,8 @@ function setupMessageHandler(enqueue, getSessionId) {
 
     log(`[TELEGRAM] Nhận tin từ chatId=${chatId}`, promptText.substring(0, 80));
     appendSession(promptText);
-    await enqueue(chatId, promptText);
+    await enqueue(chatId, promptText, "", msg.message_id);
   });
 }
 
-module.exports = { bot, sendFileToTelegram, setupMessageHandler, getLastChatId, initBotInfo };
+module.exports = { bot, reactToMessage, sendFileToTelegram, setupMessageHandler, getLastChatId, initBotInfo };

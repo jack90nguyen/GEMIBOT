@@ -1,7 +1,7 @@
 const { log } = require("./logger");
-const { MESSAGES, getBotName } = require("./constants");
+const { MESSAGES } = require("./constants");
 const { sendPrompt } = require("./gemini");
-const { bot, sendFileToTelegram } = require("./telegram");
+const { bot, reactToMessage, sendFileToTelegram } = require("./telegram");
 const { parseSystemTags } = require("./tags");
 
 const messageQueue = [];
@@ -10,12 +10,10 @@ let isProcessing = false;
 // ─── Job Handler ──────────────────────────────────────────────────────────────
 
 async function handleJob(job) {
-  const { chatId, promptText, loadingMessage, prefix = "" } = job;
+  const { chatId, promptText, prefix = "" } = job;
 
   try {
     const { text: responseText } = await sendPrompt(promptText);
-
-    bot.deleteMessage(chatId, loadingMessage.message_id).catch(() => {});
 
     if (!responseText) {
       log(`[QUEUE] Không có nội dung phản hồi`);
@@ -47,7 +45,6 @@ async function handleJob(job) {
     }
   } catch (error) {
     console.error(MESSAGES.GEMINI_CALL_ERROR, error);
-    bot.deleteMessage(chatId, loadingMessage.message_id).catch(() => {});
     const errorMessage = error.message || MESSAGES.UNKNOWN_ERROR;
     bot.sendMessage(chatId, `❌ Lỗi khi giao tiếp với Gemini:\n${errorMessage}`);
   }
@@ -70,10 +67,12 @@ async function processQueue() {
   }
 }
 
-async function enqueue(chatId, promptText, prefix = "") {
-  const loadingMessage = await bot.sendMessage(chatId, `${getBotName()} ${MESSAGES.THINKING}`);
+async function enqueue(chatId, promptText, prefix = "", messageId = null) {
+  if (messageId) {
+    reactToMessage(chatId, messageId, "👀");
+  }
   log(`[QUEUE] Enqueued for chatId=${chatId}, queue size=${messageQueue.length + 1}`);
-  messageQueue.push({ chatId, promptText, loadingMessage, prefix });
+  messageQueue.push({ chatId, promptText, prefix });
   processQueue();
 }
 
