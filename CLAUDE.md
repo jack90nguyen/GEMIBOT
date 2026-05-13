@@ -23,6 +23,7 @@
 - Keep diffs minimal and preserve logic.
 
 ## 4. Workflow & Output
-- Workflow: AI receives the request → Analyzes the requirements → Presents the plan to the user → Executes only after the user confirms the plan
+- Before adding / editing / deleting any file or code: MUST analyze the request, present a plan to the user, and wait for the user's approval before executing. Never modify files immediately.
+- Read-only actions (reading files, grep, ls, git status, etc.) used to understand the request: do them directly, no plan needed.
 - Report briefly: What changed, Why, Check result
 - Never claim completion before checks pass.
