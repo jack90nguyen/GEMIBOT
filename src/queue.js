@@ -7,17 +7,34 @@ const { parseSystemTags } = require("./tags");
 const messageQueue = [];
 let isProcessing = false;
 
+// ─── Reply abstraction ────────────────────────────────────────────────────────
+// reply = { text(content, {markdown}), file(absPath), error(msg), done() }
+
+function defaultTelegramReply(chatId) {
+  return {
+    text: (content, { markdown = false } = {}) => {
+      const opts = markdown ? { parse_mode: "Markdown" } : {};
+      return bot
+        .sendMessage(chatId, content, opts)
+        .catch(() => bot.sendMessage(chatId, content));
+    },
+    file: (filePath) => sendFileToTelegram(chatId, filePath),
+    error: (msg) => bot.sendMessage(chatId, `❌ Lỗi khi giao tiếp với Gemini:\n${msg}`),
+    done: () => {},
+  };
+}
+
 // ─── Job Handler ──────────────────────────────────────────────────────────────
 
 async function handleJob(job) {
-  const { chatId, promptText, prefix = "" } = job;
+  const { chatId, promptText, prefix = "", reply } = job;
 
   try {
     const { text: responseText } = await sendPrompt(promptText);
 
     if (!responseText) {
       log(`[QUEUE] Không có nội dung phản hồi`);
-      bot.sendMessage(chatId, MESSAGES.NO_RESPONSE);
+      await reply.text(MESSAGES.NO_RESPONSE);
       return;
     }
 
@@ -25,28 +42,25 @@ async function handleJob(job) {
 
     if (cleanText) {
       log(`[QUEUE] Gửi phản hồi, length=${cleanText.length}`);
-      const finalText = prefix + cleanText;
-      bot
-        .sendMessage(chatId, finalText, { parse_mode: "Markdown" })
-        .catch(() => bot.sendMessage(chatId, finalText));
+      await reply.text(prefix + cleanText, { markdown: true });
     }
 
     if (systemReply) {
-      bot
-        .sendMessage(chatId, systemReply, { parse_mode: "Markdown" })
-        .catch(() => bot.sendMessage(chatId, systemReply));
+      await reply.text(systemReply, { markdown: true });
     }
 
     if (filesToSend.length > 0) {
       log(`[QUEUE] Sending ${filesToSend.length} file(s) to chatId=${chatId}`);
       for (const filePath of filesToSend) {
-        await sendFileToTelegram(chatId, filePath);
+        await reply.file(filePath);
       }
     }
   } catch (error) {
     console.error(MESSAGES.GEMINI_CALL_ERROR, error);
     const errorMessage = error.message || MESSAGES.UNKNOWN_ERROR;
-    bot.sendMessage(chatId, `❌ Lỗi khi giao tiếp với Gemini:\n${errorMessage}`);
+    await reply.error(errorMessage);
+  } finally {
+    reply.done();
   }
 }
 
@@ -67,13 +81,16 @@ async function processQueue() {
   }
 }
 
-async function enqueue(chatId, promptText, prefix = "", messageId = null) {
+async function enqueue(chatId, promptText, prefix = "", messageId = null, reply = null) {
   if (messageId) {
     reactToMessage(chatId, messageId, getReactionEmoji());
   }
+  const resolvedReply = reply || defaultTelegramReply(chatId);
+  const position = messageQueue.length + (isProcessing ? 1 : 0);
   log(`[QUEUE] Enqueued for chatId=${chatId}, queue size=${messageQueue.length + 1}`);
-  messageQueue.push({ chatId, promptText, prefix });
+  messageQueue.push({ chatId, promptText, prefix, reply: resolvedReply });
   processQueue();
+  return { position };
 }
 
 module.exports = { enqueue, processQueue };

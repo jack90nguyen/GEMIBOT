@@ -14,6 +14,7 @@ const { scheduleAllCrons, setEnqueue } = require("./src/cronjob");
 const { enqueue } = require("./src/queue");
 const { injectInitContext } = require("./src/initContext");
 const { handleCommand, getCommandMenu } = require("./src/commands");
+const webui = require("./src/webui");
 
 // Bắt lỗi nếu tiến trình Gemini bị crash ngoài ý muốn
 gemini.onExit((code) => {
@@ -56,12 +57,16 @@ async function main() {
       .then(() => log(`[INIT] Slash command menu registered`))
       .catch((err) => log(`[INIT] setMyCommands failed`, err.message));
 
-    // Khi injection xong → attach handler + cron (để tránh race với pendingPrompts)
+    // Khi injection xong → attach handler + cron + web UI (để tránh race với pendingPrompts)
     injectionPromise
       .then(() => {
         log(`[INIT] Init context injected, bot fully ready`);
         setupMessageHandler(enqueue, gemini.getSessionId, handleCommand);
         scheduleAllCrons();
+
+        const webPort = parseInt(process.env.WEB_UI_PORT || "8686", 10);
+        const webHost = process.env.WEB_UI_HOST || "127.0.0.1";
+        webui.start(webPort, webHost);
       })
       .catch((err) => {
         console.error("Init context injection failed:", err);

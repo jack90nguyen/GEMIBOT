@@ -223,4 +223,4 @@ function setupMessageHandler(enqueue, getSessionId, handleCommand) {
   });
 }
 
-module.exports = { bot, reactToMessage, sendFileToTelegram, setupMessageHandler, getLastChatId, initBotInfo, loadState, saveState };
+module.exports = { bot, reactToMessage, sendFileToTelegram, setupMessageHandler, getLastChatId, initBotInfo, loadState, saveState, appendSession };

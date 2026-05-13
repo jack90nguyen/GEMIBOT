@@ -63,6 +63,9 @@ function scheduleAllCrons() {
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
 function addCron(chatId, { cron: cronExpr, prompt, description }) {
+  if (!cron.validate(cronExpr)) {
+    throw new Error(`Invalid cron expression: ${cronExpr}`);
+  }
   const jobs = loadCrons();
   const job = {
     id: randomUUID().substring(0, 8),
@@ -93,6 +96,46 @@ function removeCron(id) {
   return removed;
 }
 
+function unschedule(id) {
+  const task = scheduledTasks.get(id);
+  if (task) {
+    task.stop();
+    scheduledTasks.delete(id);
+  }
+}
+
+function updateCron(id, patch) {
+  const jobs = loadCrons();
+  const job = jobs.find((j) => j.id === id);
+  if (!job) return null;
+
+  if (patch.cron !== undefined) {
+    if (!cron.validate(patch.cron)) {
+      throw new Error(`Invalid cron expression: ${patch.cron}`);
+    }
+    job.cron = patch.cron;
+  }
+  if (patch.prompt !== undefined) job.prompt = patch.prompt;
+  if (patch.description !== undefined) job.description = patch.description;
+  if (patch.enabled !== undefined) job.enabled = !!patch.enabled;
+
+  saveCrons(jobs);
+
+  // Re-schedule: stop existing, then schedule again if enabled
+  unschedule(id);
+  if (job.enabled !== false) scheduleCron(job);
+
+  return job;
+}
+
+function setCronEnabled(id, enabled) {
+  return updateCron(id, { enabled });
+}
+
+function getAllCrons() {
+  return loadCrons();
+}
+
 function getCronsForChat(chatId) {
   return loadCrons().filter((j) => j.chatId === chatId);
 }
@@ -117,6 +160,9 @@ module.exports = {
   scheduleAllCrons,
   addCron,
   removeCron,
+  updateCron,
+  setCronEnabled,
+  getAllCrons,
   getCronsForChat,
   formatCronList,
 };
