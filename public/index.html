@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GEMIBOT</title>
+<link rel="icon" type="image/png" href="/icon.png" />
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1419;
+    --panel: #1a1f29;
+    --border: #2a3140;
+    --text: #e6e8ec;
+    --muted: #8a93a3;
+    --accent: #4f8cff;
+    --user-bg: #2a4d7f;
+    --bot-bg: #1a1f29;
+    --error: #ef4444;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  header .status {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+  header .logo {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: block;
+  }
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .msg {
+    max-width: 75%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    line-height: 1.5;
+    word-wrap: break-word;
+    font-size: 14px;
+  }
+  .msg.user {
+    background: var(--user-bg);
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+  }
+  .msg.bot {
+    background: var(--bot-bg);
+    align-self: flex-start;
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+  .msg.error {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid var(--error);
+    align-self: flex-start;
+  }
+  .msg pre {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 13px;
+  }
+  .msg code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 13px;
+  }
+  .msg pre code { padding: 0; background: none; }
+  .msg p { margin: 0 0 8px 0; }
+  .msg p:last-child { margin-bottom: 0; }
+  .msg img.attachment {
+    max-width: 100%;
+    border-radius: 8px;
+    margin-top: 6px;
+    display: block;
+  }
+  .msg a.file-link {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 6px 10px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 6px;
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 13px;
+  }
+  .typing {
+    color: var(--muted);
+    font-style: italic;
+    font-size: 13px;
+  }
+  #composer {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+  }
+  #attachments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  #attachments:empty { display: none; }
+  .chip {
+    background: var(--border);
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .chip button {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0;
+    font-size: 14px;
+  }
+  .input-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+  }
+  #text {
+    flex: 1;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: none;
+    max-height: 160px;
+    outline: none;
+  }
+  #text:focus { border-color: var(--accent); }
+  /* Dark scrollbars (Chrome/Safari + Firefox) */
+  #text, #messages, .msg pre, .modal-body {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  #text::-webkit-scrollbar,
+  #messages::-webkit-scrollbar,
+  .msg pre::-webkit-scrollbar,
+  .modal-body::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  #text::-webkit-scrollbar-track,
+  #messages::-webkit-scrollbar-track,
+  .msg pre::-webkit-scrollbar-track,
+  .modal-body::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  #text::-webkit-scrollbar-thumb,
+  #messages::-webkit-scrollbar-thumb,
+  .msg pre::-webkit-scrollbar-thumb,
+  .modal-body::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+  }
+  #text::-webkit-scrollbar-thumb:hover,
+  #messages::-webkit-scrollbar-thumb:hover,
+  .msg pre::-webkit-scrollbar-thumb:hover,
+  .modal-body::-webkit-scrollbar-thumb:hover {
+    background: #3a4356;
+  }
+  button.icon, button.send {
+    background: var(--border);
+    color: var(--text);
+    border: none;
+    border-radius: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  button.send { background: var(--accent); }
+  button.send:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.icon:hover, button.send:hover:not(:disabled) { filter: brightness(1.1); }
+  #fileInput { display: none; }
+
+  /* ─── Modal ─────────────────────────────────────────────── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 720px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .modal-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+  }
+  .modal-header button {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 18px;
+  }
+  .modal-body {
+    padding: 16px 18px;
+    overflow-y: auto;
+  }
+
+  /* Form */
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+  .field label { font-size: 12px; color: var(--muted); }
+  .field input, .field textarea {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+  }
+  .field input:focus, .field textarea:focus { border-color: var(--accent); }
+  .field textarea { min-height: 70px; resize: vertical; }
+  .field .hint { font-size: 11px; color: var(--muted); }
+  .form-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 8px;
+    margin-bottom: 16px;
+  }
+  .form-actions button {
+    padding: 7px 14px;
+    font-size: 13px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: none;
+  }
+  .form-actions .primary { background: var(--accent); color: white; }
+  .form-actions .secondary { background: var(--border); color: var(--text); }
+
+  /* Cron list */
+  .cron-list-title {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 16px 0 8px 0;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+  .cron-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .cron-card.disabled { opacity: 0.5; }
+  .cron-card .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .cron-card .desc { font-weight: 500; font-size: 14px; }
+  .cron-card .meta {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .cron-card .prompt {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .cron-card .actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .cron-card .actions button {
+    padding: 4px 9px;
+    font-size: 12px;
+    background: var(--border);
+    color: var(--text);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .cron-card .actions button:hover { filter: brightness(1.15); }
+  .empty-state { color: var(--muted); text-align: center; padding: 20px; font-size: 13px; }
+  .modal-error {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid var(--error);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+    margin-bottom: 10px;
+    display: none;
+  }
+  .modal-error.show { display: block; }
+
+  /* Switch */
+  .switch {
+    position: relative;
+    width: 32px;
+    height: 18px;
+    background: var(--border);
+    border-radius: 9px;
+    cursor: pointer;
+    transition: background 0.15s;
+    flex-shrink: 0;
+  }
+  .switch.on { background: var(--accent); }
+  .switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    background: white;
+    border-radius: 50%;
+    transition: left 0.15s;
+  }
+  .switch.on::after { left: 16px; }
+</style>
+</head>
+<body>
+<header>
+  <span style="display:flex;gap:10px;align-items:center;">
+    <img src="/icon.png" alt="GEMIBOT" class="logo" />
+    <span>GEMIBOT</span>
+  </span>
+  <span style="display:flex;gap:12px;align-items:center;">
+    <span class="status" id="status">Ready</span>
+    <button class="icon" id="cronBtn" title="Manage cron jobs">⏰</button>
+    <button class="icon" id="clearBtn" title="Clear chat history">🗑</button>
+  </span>
+</header>
+<div id="messages"></div>
+<div id="composer">
+  <div id="attachments"></div>
+  <div class="input-row">
+    <button class="icon" id="attachBtn" title="Attach file">📎</button>
+    <input type="file" id="fileInput" multiple />
+    <textarea id="text" rows="1" placeholder="Type a message... (Enter to send, Shift+Enter for newline)"></textarea>
+    <button class="send" id="sendBtn">Send</button>
+  </div>
+</div>
+
+<!-- ─── Cron modal ─────────────────────────────────────────── -->
+<div class="modal-overlay" id="cronModal">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <span>⏰ Cron Jobs</span>
+      <button id="cronCloseBtn" title="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-error" id="cronError"></div>
+
+      <div id="cronFormTitle" style="font-weight:600;margin-bottom:8px;">New Cron</div>
+      <div class="field">
+        <label for="cronExpr">Cron expression</label>
+        <input type="text" id="cronExpr" placeholder="0 9 * * *" />
+        <span class="hint">Examples: <code>0 9 * * *</code> = every day at 9:00 · <code>*/15 * * * *</code> = every 15 minutes</span>
+      </div>
+      <div class="field">
+        <label for="cronDesc">Description</label>
+        <input type="text" id="cronDesc" placeholder="Daily server health check" />
+      </div>
+      <div class="field">
+        <label for="cronPrompt">Prompt</label>
+        <textarea id="cronPrompt" placeholder="What should the bot do when this fires?"></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="secondary" id="cronCancelBtn" style="display:none;">Cancel</button>
+        <button class="primary" id="cronSaveBtn">Save</button>
+      </div>
+
+      <div class="cron-list-title">Scheduled jobs</div>
+      <div id="cronList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+const messagesEl = $("#messages");
+const textEl = $("#text");
+const sendBtn = $("#sendBtn");
+const attachBtn = $("#attachBtn");
+const fileInput = $("#fileInput");
+const attachmentsEl = $("#attachments");
+const statusEl = $("#status");
+
+let stagedFiles = []; // { path, name } from server after upload
+
+function setStatus(text) { statusEl.textContent = text; }
+
+function autoResize() {
+  textEl.style.height = "auto";
+  textEl.style.height = Math.min(textEl.scrollHeight, 160) + "px";
+}
+textEl.addEventListener("input", autoResize);
+
+function scrollToBottom() {
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function addMessage(role, opts = {}) {
+  const el = document.createElement("div");
+  el.className = `msg ${role}`;
+  messagesEl.appendChild(el);
+  scrollToBottom();
+  return el;
+}
+
+function renderMarkdown(text) {
+  try {
+    return marked.parse(text, { breaks: true, gfm: true });
+  } catch {
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  }
+}
+
+function setMessageHTML(el, html) {
+  el.innerHTML = html;
+  scrollToBottom();
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function fileUrl(absPath) {
+  return `/api/file?path=${encodeURIComponent(absPath)}`;
+}
+
+function renderUserMessage(text, files) {
+  const el = addMessage("user");
+  let html = "";
+  if (text) html += `<div>${escapeHtml(text).replace(/\n/g, "<br>")}</div>`;
+  for (const f of files) {
+    const isImg = /\.(png|jpe?g|gif|webp|bmp)$/i.test(f.path);
+    if (isImg) {
+      html += `<img class="attachment" src="${fileUrl(f.path)}" alt="${escapeHtml(f.name)}">`;
+    } else {
+      html += `<a class="file-link" href="${fileUrl(f.path)}" target="_blank">📎 ${escapeHtml(f.name)}</a>`;
+    }
+  }
+  setMessageHTML(el, html);
+}
+
+function renderBotEvent(botEl, event) {
+  if (event.type === "text") {
+    const div = document.createElement("div");
+    div.innerHTML = event.markdown ? renderMarkdown(event.content) : escapeHtml(event.content).replace(/\n/g, "<br>");
+    botEl.appendChild(div);
+  } else if (event.type === "file") {
+    const isImg = /\.(png|jpe?g|gif|webp|bmp)$/i.test(event.path);
+    if (isImg) {
+      const img = document.createElement("img");
+      img.className = "attachment";
+      img.src = fileUrl(event.path);
+      img.alt = event.name;
+      botEl.appendChild(img);
+    } else {
+      const a = document.createElement("a");
+      a.className = "file-link";
+      a.href = fileUrl(event.path);
+      a.target = "_blank";
+      a.textContent = `📎 ${event.name}`;
+      botEl.appendChild(a);
+    }
+  } else if (event.type === "error") {
+    botEl.classList.add("error");
+    botEl.appendChild(document.createTextNode("❌ " + event.message));
+  }
+  scrollToBottom();
+}
+
+async function uploadStagedFiles(rawFiles) {
+  const formData = new FormData();
+  for (const f of rawFiles) formData.append("files", f);
+  const res = await fetch("/api/upload", { method: "POST", body: formData });
+  if (!res.ok) throw new Error("Upload failed");
+  const { files } = await res.json();
+  return files;
+}
+
+function renderStagedChips() {
+  attachmentsEl.innerHTML = "";
+  stagedFiles.forEach((f, idx) => {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.innerHTML = `📎 ${escapeHtml(f.name)} <button data-idx="${idx}">✕</button>`;
+    chip.querySelector("button").onclick = () => {
+      stagedFiles.splice(idx, 1);
+      renderStagedChips();
+    };
+    attachmentsEl.appendChild(chip);
+  });
+}
+
+attachBtn.onclick = () => fileInput.click();
+
+fileInput.onchange = async () => {
+  if (!fileInput.files.length) return;
+  setStatus("Uploading...");
+  try {
+    const uploaded = await uploadStagedFiles(fileInput.files);
+    stagedFiles.push(...uploaded);
+    renderStagedChips();
+    setStatus("Ready");
+  } catch (err) {
+    setStatus("Upload failed: " + err.message);
+  }
+  fileInput.value = "";
+};
+
+async function sendMessage() {
+  const text = textEl.value.trim();
+  if (!text && stagedFiles.length === 0) return;
+
+  sendBtn.disabled = true;
+  const filesSnapshot = stagedFiles.slice();
+  renderUserMessage(text, filesSnapshot);
+
+  textEl.value = "";
+  stagedFiles = [];
+  renderStagedChips();
+  autoResize();
+
+  const botEl = addMessage("bot");
+  botEl.innerHTML = `<span class="typing">Thinking...</span>`;
+
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, filePaths: filesSnapshot.map((f) => f.path) }),
+    });
+    const { id, position } = await res.json();
+    if (position > 0) setStatus(`Queued (position ${position})...`);
+    else setStatus("Processing...");
+
+    const evtSource = new EventSource(`/api/stream/${id}`);
+    let firstEvent = true;
+
+    evtSource.onmessage = (ev) => {
+      const event = JSON.parse(ev.data);
+      if (firstEvent) {
+        botEl.innerHTML = "";
+        firstEvent = false;
+      }
+      if (event.type === "end") {
+        evtSource.close();
+        if (firstEvent) botEl.innerHTML = `<span class="typing">(no response)</span>`;
+        setStatus("Ready");
+        sendBtn.disabled = false;
+      } else {
+        renderBotEvent(botEl, event);
+      }
+    };
+
+    evtSource.onerror = () => {
+      evtSource.close();
+      setStatus("Connection lost");
+      sendBtn.disabled = false;
+    };
+  } catch (err) {
+    botEl.classList.add("error");
+    botEl.innerHTML = "❌ " + escapeHtml(err.message);
+    setStatus("Error");
+    sendBtn.disabled = false;
+  }
+}
+
+sendBtn.onclick = sendMessage;
+
+textEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+function renderHistoryMessage(msg) {
+  if (msg.role === "user") {
+    renderUserMessage(msg.text || "", msg.files || []);
+  } else if (msg.role === "bot") {
+    const el = addMessage("bot");
+    const events = msg.events || [];
+    if (events.length === 0) {
+      el.innerHTML = `<span class="typing">(no response)</span>`;
+    } else {
+      for (const ev of events) renderBotEvent(el, ev);
+    }
+  }
+}
+
+async function loadHistory() {
+  try {
+    const res = await fetch("/api/history");
+    const { messages } = await res.json();
+    for (const msg of messages) renderHistoryMessage(msg);
+  } catch (err) {
+    setStatus("Failed to load history: " + err.message);
+  }
+}
+
+document.querySelector("#clearBtn").onclick = async () => {
+  if (!confirm("Clear all chat history?")) return;
+  try {
+    await fetch("/api/history", { method: "DELETE" });
+    messagesEl.innerHTML = "";
+    setStatus("History cleared");
+  } catch (err) {
+    setStatus("Failed to clear: " + err.message);
+  }
+};
+
+// ─── Cron modal ────────────────────────────────────────────────
+
+const cronModal = $("#cronModal");
+const cronListEl = $("#cronList");
+const cronErrorEl = $("#cronError");
+const cronExprEl = $("#cronExpr");
+const cronDescEl = $("#cronDesc");
+const cronPromptEl = $("#cronPrompt");
+const cronSaveBtn = $("#cronSaveBtn");
+const cronCancelBtn = $("#cronCancelBtn");
+const cronFormTitle = $("#cronFormTitle");
+
+let editingCronId = null;
+
+function showCronError(msg) {
+  cronErrorEl.textContent = msg;
+  cronErrorEl.classList.add("show");
+}
+function clearCronError() {
+  cronErrorEl.classList.remove("show");
+}
+
+function resetCronForm() {
+  editingCronId = null;
+  cronExprEl.value = "";
+  cronDescEl.value = "";
+  cronPromptEl.value = "";
+  cronFormTitle.textContent = "New Cron";
+  cronCancelBtn.style.display = "none";
+  clearCronError();
+}
+
+function fillCronForm(job) {
+  editingCronId = job.id;
+  cronExprEl.value = job.cron;
+  cronDescEl.value = job.description;
+  cronPromptEl.value = job.prompt;
+  cronFormTitle.textContent = `Edit Cron · ${job.id}`;
+  cronCancelBtn.style.display = "inline-block";
+  clearCronError();
+  cronExprEl.focus();
+}
+
+function renderCronCard(job) {
+  const card = document.createElement("div");
+  card.className = "cron-card" + (job.enabled === false ? " disabled" : "");
+
+  const row1 = document.createElement("div");
+  row1.className = "row";
+  row1.innerHTML = `
+    <span class="desc">${escapeHtml(job.description)}</span>
+    <span class="actions">
+      <span class="switch ${job.enabled !== false ? "on" : ""}" data-act="toggle" title="${job.enabled !== false ? "Disable" : "Enable"}"></span>
+      <button data-act="edit">Edit</button>
+      <button data-act="delete">Delete</button>
+    </span>
+  `;
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  meta.textContent = `${job.cron}  ·  id ${job.id}  ·  chatId ${job.chatId}`;
+  const prompt = document.createElement("div");
+  prompt.className = "prompt";
+  prompt.textContent = job.prompt;
+
+  card.appendChild(row1);
+  card.appendChild(meta);
+  card.appendChild(prompt);
+
+  card.querySelector('[data-act="toggle"]').onclick = () => toggleCron(job);
+  card.querySelector('[data-act="edit"]').onclick = () => fillCronForm(job);
+  card.querySelector('[data-act="delete"]').onclick = () => deleteCron(job);
+
+  return card;
+}
+
+async function loadCrons() {
+  cronListEl.innerHTML = `<div class="empty-state">Loading...</div>`;
+  try {
+    const res = await fetch("/api/crons");
+    const { crons } = await res.json();
+    cronListEl.innerHTML = "";
+    if (!crons.length) {
+      cronListEl.innerHTML = `<div class="empty-state">No cron jobs yet. Create one above.</div>`;
+      return;
+    }
+    for (const job of crons) cronListEl.appendChild(renderCronCard(job));
+  } catch (err) {
+    cronListEl.innerHTML = `<div class="empty-state">Failed to load: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function saveCron() {
+  clearCronError();
+  const payload = {
+    cron: cronExprEl.value.trim(),
+    description: cronDescEl.value.trim(),
+    prompt: cronPromptEl.value.trim(),
+  };
+  if (!payload.cron || !payload.description || !payload.prompt) {
+    showCronError("All fields are required.");
+    return;
+  }
+
+  cronSaveBtn.disabled = true;
+  try {
+    let res;
+    if (editingCronId) {
+      res = await fetch(`/api/crons/${editingCronId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } else {
+      res = await fetch("/api/crons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Request failed");
+    resetCronForm();
+    await loadCrons();
+  } catch (err) {
+    showCronError(err.message);
+  } finally {
+    cronSaveBtn.disabled = false;
+  }
+}
+
+async function toggleCron(job) {
+  try {
+    const res = await fetch(`/api/crons/${job.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: job.enabled === false }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Request failed");
+    await loadCrons();
+  } catch (err) {
+    showCronError(err.message);
+  }
+}
+
+async function deleteCron(job) {
+  if (!confirm(`Delete cron "${job.description}"?`)) return;
+  try {
+    const res = await fetch(`/api/crons/${job.id}`, { method: "DELETE" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Request failed");
+    if (editingCronId === job.id) resetCronForm();
+    await loadCrons();
+  } catch (err) {
+    showCronError(err.message);
+  }
+}
+
+cronSaveBtn.onclick = saveCron;
+cronCancelBtn.onclick = resetCronForm;
+
+$("#cronBtn").onclick = () => {
+  cronModal.classList.add("open");
+  resetCronForm();
+  loadCrons();
+};
+$("#cronCloseBtn").onclick = () => cronModal.classList.remove("open");
+cronModal.onclick = (e) => {
+  if (e.target === cronModal) cronModal.classList.remove("open");
+};
+
+loadHistory();
+textEl.focus();
+</script>
+</body>
+</html>

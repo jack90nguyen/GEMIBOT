@@ -1,0 +1,13 @@
+{
+  "watch": ["bridge.js", "src/", "public/"],
+  "ext": "js,html,css,json",
+  "ignore": [
+    "state.json",
+    "web-history.json",
+    "SESSION.md",
+    "crons.json",
+    "files/",
+    "node_modules/"
+  ],
+  "delay": "300"
+}
