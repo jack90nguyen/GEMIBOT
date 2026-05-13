@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const TelegramBot = require("node-telegram-bot-api");
 const { log } = require("./logger");
-const { MESSAGES } = require("./constants");
+const { MESSAGES, getReactionEmoji } = require("./constants");
 
 const STATE_FILE = path.join(process.cwd(), "state.json");
 
@@ -143,8 +143,8 @@ async function sendFileToTelegram(chatId, filePath) {
 
 // ─── Message Handler ──────────────────────────────────────────────────────────
 
-// enqueue được inject từ bridge.js
-function setupMessageHandler(enqueue, getSessionId) {
+// enqueue + handleCommand được inject từ bridge.js
+function setupMessageHandler(enqueue, getSessionId, handleCommand) {
   bot.on("message", async (msg) => {
     const chatId = msg.chat.id;
 
@@ -161,6 +161,17 @@ function setupMessageHandler(enqueue, getSessionId) {
 
     // Lưu lại chatId gần nhất để dùng khi bot restart
     if (isPrivate) saveLastChatId(chatId);
+
+    // Intercept slash command trước khi đẩy vào Gemini
+    const textForCmd = mention && msg.text ? stripMention(msg.text, mention) : msg.text;
+    if (handleCommand && textForCmd && textForCmd.startsWith("/")) {
+      const cmdMsg = { ...msg, text: textForCmd };
+      const handled = await handleCommand(cmdMsg, { bot, botUsername: botInfo?.username });
+      if (handled) {
+        reactToMessage(chatId, msg.message_id, getReactionEmoji());
+        return;
+      }
+    }
 
     let promptText = null;
 
@@ -212,4 +223,4 @@ function setupMessageHandler(enqueue, getSessionId) {
   });
 }
 
-module.exports = { bot, reactToMessage, sendFileToTelegram, setupMessageHandler, getLastChatId, initBotInfo };
+module.exports = { bot, reactToMessage, sendFileToTelegram, setupMessageHandler, getLastChatId, initBotInfo, loadState, saveState };

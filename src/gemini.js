@@ -2,75 +2,99 @@ const { spawn } = require("child_process");
 const readline = require("readline");
 const { log } = require("./logger");
 
-const geminiModel = process.env.GEMINI_MODEL;
-
-// Spawn Gemini CLI process
-const geminiArgs = ["--acp", "--yolo"];
-if (geminiModel) geminiArgs.push("-m", geminiModel);
-
-const geminiProcess = spawn("gemini", geminiArgs, {
-  stdio: ["pipe", "pipe", "inherit"],
-});
+let geminiProcess = null;
+let rl = null;
+let currentModel = null;
 
 let rpcId = 1;
 let currentSessionId = null;
 const pendingRequests = new Map();
 const pendingPrompts = new Map(); // sessionId -> { chunks[] }
 
-// Đọc stdout từ Gemini (JSON-RPC notifications + responses)
-const rl = readline.createInterface({ input: geminiProcess.stdout });
+let intentionalRestart = false;
+let exitListener = null;
 
-rl.on("line", (line) => {
-  if (!line.trim()) return;
-  try {
-    const message = JSON.parse(line);
+function rejectAllPending(reason) {
+  for (const [, { reject }] of pendingRequests) reject(reason);
+  pendingRequests.clear();
+  pendingPrompts.clear();
+}
 
-    // Notification: session/update (không có id)
-    if (!message.id && message.method === "session/update") {
-      const { sessionId, update } = message.params || {};
-      if (!sessionId || !update) return;
+function attachReadline() {
+  rl = readline.createInterface({ input: geminiProcess.stdout });
 
-      const pending = pendingPrompts.get(sessionId);
-      if (!pending) return;
+  rl.on("line", (line) => {
+    if (!line.trim()) return;
+    try {
+      const message = JSON.parse(line);
 
-      const { sessionUpdate, content } = update;
-      log(
-        `[NOTIFICATION] sessionUpdate=${sessionUpdate}`,
-        content
-          ? { type: content.type, text: content.text?.substring(0, 60) }
-          : undefined,
-      );
+      // Notification: session/update (không có id)
+      if (!message.id && message.method === "session/update") {
+        const { sessionId, update } = message.params || {};
+        if (!sessionId || !update) return;
 
-      // Thu thập các chunk nội dung phản hồi
-      if (sessionUpdate === "agent_message_chunk" && content) {
-        if (content.type === "text" && content.text) {
-          pending.chunks.push(content.text);
+        const pending = pendingPrompts.get(sessionId);
+        if (!pending) return;
+
+        const { sessionUpdate, content } = update;
+        log(
+          `[NOTIFICATION] sessionUpdate=${sessionUpdate}`,
+          content
+            ? { type: content.type, text: content.text?.substring(0, 60) }
+            : undefined,
+        );
+
+        if (sessionUpdate === "agent_message_chunk" && content) {
+          if (content.type === "text" && content.text) {
+            pending.chunks.push(content.text);
+          }
+        }
+        return;
+      }
+
+      // JSON-RPC response (có id)
+      if (message.id && pendingRequests.has(message.id)) {
+        const { resolve, reject } = pendingRequests.get(message.id);
+        pendingRequests.delete(message.id);
+
+        if (message.error) {
+          log(`[RESPONSE] id=${message.id} ERROR`, message.error);
+          reject(message.error);
+        } else {
+          log(`[RESPONSE] id=${message.id}`, {
+            stopReason: message.result?.stopReason,
+          });
+          resolve(message.result);
         }
       }
+    } catch (err) {
+      console.error("Lỗi parse JSON từ Gemini:", err.message);
+    }
+  });
+}
+
+function spawnGemini(model) {
+  currentModel = model || null;
+  const args = ["--acp", "--yolo"];
+  if (currentModel) args.push("-m", currentModel);
+
+  geminiProcess = spawn("gemini", args, {
+    stdio: ["pipe", "pipe", "inherit"],
+    detached: true, // tạo process group riêng để kill được cả con cháu khi restart
+  });
+
+  geminiProcess.on("exit", (code) => {
+    if (intentionalRestart) {
+      intentionalRestart = false;
       return;
     }
+    if (exitListener) exitListener(code);
+  });
 
-    // JSON-RPC response (có id)
-    if (message.id && pendingRequests.has(message.id)) {
-      const { resolve, reject } = pendingRequests.get(message.id);
-      pendingRequests.delete(message.id);
+  attachReadline();
+  log(`[GEMINI] Process spawned${currentModel ? ` (model=${currentModel})` : ""}`);
+}
 
-      if (message.error) {
-        log(`[RESPONSE] id=${message.id} ERROR`, message.error);
-        reject(message.error);
-      } else {
-        log(`[RESPONSE] id=${message.id}`, {
-          stopReason: message.result?.stopReason,
-        });
-        resolve(message.result);
-      }
-    }
-  } catch (err) {
-    console.error("Lỗi parse JSON từ Gemini:", err.message);
-  }
-});
-
-// Gửi JSON-RPC request xuống Gemini qua stdin
 function sendToGemini(method, params = {}) {
   return new Promise((resolve, reject) => {
     const id = rpcId++;
@@ -80,7 +104,6 @@ function sendToGemini(method, params = {}) {
   });
 }
 
-// Gửi prompt và đợi kết quả (thu thập notification chunks)
 function sendPrompt(text) {
   return new Promise((resolve, reject) => {
     if (!currentSessionId) return reject(new Error("No active session"));
@@ -120,8 +143,9 @@ function sendPrompt(text) {
   });
 }
 
-// Khởi tạo ACP session với Gemini CLI
-async function init() {
+async function init({ model } = {}) {
+  if (!geminiProcess) spawnGemini(model);
+
   await sendToGemini("initialize", {
     protocolVersion: 1,
     processId: process.pid,
@@ -139,12 +163,79 @@ async function init() {
   return currentSessionId;
 }
 
+async function newSession() {
+  const sessionData = await sendToGemini("session/new", {
+    cwd: process.cwd(),
+    mcpServers: [],
+  });
+  currentSessionId = sessionData.sessionId;
+  log(`[GEMINI] New session: ${currentSessionId}`);
+  return currentSessionId;
+}
+
+function killProcessTree(proc, signal) {
+  const pid = proc.pid;
+  try {
+    process.kill(-pid, signal); // kill cả process group (wrapper + child node)
+  } catch (e) {
+    try {
+      proc.kill(signal);
+    } catch (e2) {
+      /* đã chết */
+    }
+  }
+}
+
+async function restart({ model } = {}) {
+  log(`[GEMINI] Restarting (model=${model || currentModel || "default"})...`);
+  intentionalRestart = true;
+  rejectAllPending(new Error("Gemini process restarting"));
+
+  const oldProc = geminiProcess;
+  const exited = new Promise((resolve) => oldProc.once("exit", resolve));
+
+  killProcessTree(oldProc, "SIGTERM");
+  const forceTimer = setTimeout(() => {
+    log(`[GEMINI] SIGTERM didn't kill pid=${oldProc.pid} in 2s, sending SIGKILL`);
+    killProcessTree(oldProc, "SIGKILL");
+  }, 2000);
+
+  await exited;
+  clearTimeout(forceTimer);
+
+  rpcId = 1;
+  currentSessionId = null;
+  geminiProcess = null;
+  rl = null;
+
+  await init({ model: model || currentModel });
+  return currentSessionId;
+}
+
+function onExit(fn) {
+  exitListener = fn;
+}
+
 function getSessionId() {
   return currentSessionId;
 }
 
-function kill() {
-  geminiProcess.kill();
+function getCurrentModel() {
+  return currentModel;
 }
 
-module.exports = { init, sendToGemini, sendPrompt, getSessionId, kill, geminiProcess };
+function kill() {
+  if (geminiProcess) killProcessTree(geminiProcess, "SIGTERM");
+}
+
+module.exports = {
+  init,
+  sendToGemini,
+  sendPrompt,
+  newSession,
+  restart,
+  onExit,
+  getSessionId,
+  getCurrentModel,
+  kill,
+};
