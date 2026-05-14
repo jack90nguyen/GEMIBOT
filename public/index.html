@@ -5,9 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>GEMIBOT</title>
 <link rel="icon" type="image/png" href="/icon.png" />
+<link rel="manifest" href="/manifest.json" />
+<meta name="theme-color" content="#0f1419" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#f5f7fa" media="(prefers-color-scheme: light)" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="GEMIBOT" />
+<link rel="apple-touch-icon" href="/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+<script>
+  // Apply theme as early as possible to avoid flash
+  (function() {
+    const t = localStorage.getItem("theme") || "dark";
+    document.documentElement.setAttribute("data-theme", t);
+  })();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
-  :root {
+  :root, [data-theme="dark"] {
     --bg: #0f1419;
     --panel: #1a1f29;
     --border: #2a3140;
@@ -15,18 +32,43 @@
     --muted: #8a93a3;
     --accent: #4f8cff;
     --user-bg: #2a4d7f;
+    --user-text: #e6e8ec;
     --bot-bg: #1a1f29;
     --error: #ef4444;
+    --code-bg: rgba(0, 0, 0, 0.3);
+    --file-link-bg: rgba(255, 255, 255, 0.08);
+    --scrollbar-hover: #3a4356;
+  }
+  [data-theme="light"] {
+    --bg: #f5f7fa;
+    --panel: #ffffff;
+    --border: #d8deeb;
+    --text: #1a1f29;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --user-bg: #2563eb;
+    --user-text: #ffffff;
+    --bot-bg: #ffffff;
+    --error: #dc2626;
+    --code-bg: rgba(0, 0, 0, 0.06);
+    --file-link-bg: rgba(0, 0, 0, 0.06);
+    --scrollbar-hover: #b4bccc;
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: "Space Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
     background: var(--bg);
     color: var(--text);
     display: flex;
     flex-direction: column;
     height: 100vh;
+  }
+  header, #messages, #composer {
+    width: 100%;
+    max-width: 768px;
+    margin-left: auto;
+    margin-right: auto;
   }
   header {
     padding: 12px 20px;
@@ -66,6 +108,7 @@
   }
   .msg.user {
     background: var(--user-bg);
+    color: var(--user-text);
     align-self: flex-end;
     border-bottom-right-radius: 4px;
   }
@@ -81,14 +124,14 @@
     align-self: flex-start;
   }
   .msg pre {
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--code-bg);
     padding: 10px;
     border-radius: 6px;
     overflow-x: auto;
     font-size: 13px;
   }
   .msg code {
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--code-bg);
     padding: 1px 5px;
     border-radius: 3px;
     font-size: 13px;
@@ -106,7 +149,7 @@
     display: inline-block;
     margin-top: 6px;
     padding: 6px 10px;
-    background: rgba(255,255,255,0.08);
+    background: var(--file-link-bg);
     border-radius: 6px;
     color: var(--accent);
     text-decoration: none;
@@ -194,7 +237,7 @@
   #messages::-webkit-scrollbar-thumb:hover,
   .msg pre::-webkit-scrollbar-thumb:hover,
   .modal-body::-webkit-scrollbar-thumb:hover {
-    background: #3a4356;
+    background: var(--scrollbar-hover);
   }
   button.icon, button.send {
     background: var(--border);
@@ -205,7 +248,7 @@
     cursor: pointer;
     font-size: 14px;
   }
-  button.send { background: var(--accent); }
+  button.send { background: var(--accent); color: #ffffff; }
   button.send:disabled { opacity: 0.5; cursor: not-allowed; }
   button.icon:hover, button.send:hover:not(:disabled) { filter: brightness(1.1); }
   #fileInput { display: none; }
@@ -317,7 +360,6 @@
   .cron-card .meta {
     font-size: 12px;
     color: var(--muted);
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   .cron-card .prompt {
     font-size: 12px;
@@ -382,6 +424,7 @@
   </span>
   <span style="display:flex;gap:12px;align-items:center;">
     <span class="status" id="status">Ready</span>
+    <button class="icon" id="themeBtn" title="Toggle theme">🌙</button>
     <button class="icon" id="cronBtn" title="Manage cron jobs">⏰</button>
     <button class="icon" id="clearBtn" title="Clear chat history">🗑</button>
   </span>
@@ -838,6 +881,21 @@ $("#cronBtn").onclick = () => {
 $("#cronCloseBtn").onclick = () => cronModal.classList.remove("open");
 cronModal.onclick = (e) => {
   if (e.target === cronModal) cronModal.classList.remove("open");
+};
+
+// ─── Theme toggle ──────────────────────────────────────────────
+
+const themeBtn = $("#themeBtn");
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  themeBtn.textContent = theme === "light" ? "☀" : "🌙";
+  themeBtn.title = theme === "light" ? "Switch to dark mode" : "Switch to light mode";
+}
+applyTheme(localStorage.getItem("theme") || "dark");
+themeBtn.onclick = () => {
+  const next = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+  localStorage.setItem("theme", next);
+  applyTheme(next);
 };
 
 loadHistory();
