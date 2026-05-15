@@ -5,9 +5,11 @@ const multer = require("multer");
 const { randomUUID } = require("crypto");
 const { log } = require("./logger");
 const { enqueue } = require("./queue");
-const { appendSession, loadState } = require("./telegram");
+const { appendSession, loadState, saveState } = require("./telegram");
 const history = require("./webHistory");
 const cronjob = require("./cronjob");
+const gemini = require("./gemini");
+const { injectInitContext, clearSession } = require("./initContext");
 
 const WEB_CHAT_ID = "__web__";
 
@@ -215,6 +217,42 @@ function start(port, host) {
     if (!removed) return res.status(404).json({ error: "Cron not found" });
     log(`[WEB] Cron deleted id=${id}`);
     res.json({ ok: true });
+  });
+
+  // ─── Model + session control ────────────────────────────────────────────────
+
+  app.get("/api/model", (req, res) => {
+    res.json({ model: gemini.getCurrentModel() });
+  });
+
+  app.post("/api/model", async (req, res) => {
+    const { model } = req.body || {};
+    if (!model || typeof model !== "string") {
+      return res.status(400).json({ error: "model required" });
+    }
+    log(`[WEB] Model change requested: ${model}`);
+    try {
+      saveState({ currentModel: model });
+      await gemini.restart({ model });
+      await injectInitContext();
+      log(`[WEB] Model switched to ${model}`);
+      res.json({ model });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/reset", async (req, res) => {
+    log(`[WEB] Reset session requested`);
+    try {
+      clearSession();
+      await gemini.newSession();
+      await injectInitContext();
+      log(`[WEB] Session reset complete`);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   app.get("/api/stream/:id", (req, res) => {

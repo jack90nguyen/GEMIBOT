@@ -7,6 +7,62 @@ const { parseSystemTags } = require("./tags");
 const messageQueue = [];
 let isProcessing = false;
 
+// ─── Retry config ─────────────────────────────────────────────────────────────
+
+const RETRY_MAX = Math.max(0, parseInt(process.env.GEMINI_RETRY_MAX || "3", 10));
+const RETRY_DELAYS = (process.env.GEMINI_RETRY_DELAYS || "2000,5000,10000")
+  .split(",")
+  .map((s) => parseInt(s.trim(), 10))
+  .filter((n) => Number.isFinite(n) && n >= 0);
+
+const TRANSIENT_PATTERNS = [
+  /no capacity/i,
+  /overloaded/i,
+  /rate ?limit/i,
+  /\b429\b/,
+  /\b503\b/,
+  /\b504\b/,
+  /econnreset/i,
+  /etimedout/i,
+  /socket hang up/i,
+  /network error/i,
+];
+
+function errorMessage(err) {
+  if (!err) return "";
+  if (typeof err === "string") return err;
+  return err.message || JSON.stringify(err);
+}
+
+function isTransientError(err) {
+  const msg = errorMessage(err);
+  return TRANSIENT_PATTERNS.some((re) => re.test(msg));
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function sendPromptWithRetry(promptText, reply) {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await sendPrompt(promptText);
+    } catch (err) {
+      if (attempt >= RETRY_MAX || !isTransientError(err)) throw err;
+      const delay = RETRY_DELAYS[attempt] ?? RETRY_DELAYS[RETRY_DELAYS.length - 1] ?? 2000;
+      const seconds = Math.round(delay / 1000);
+      const next = attempt + 1;
+      log(`[QUEUE] Transient error, retry ${next}/${RETRY_MAX} in ${seconds}s: ${errorMessage(err)}`);
+      try {
+        await reply.text(`⏳ ${errorMessage(err)}\nRetrying in ${seconds}s... (${next}/${RETRY_MAX})`);
+      } catch {}
+      await sleep(delay);
+      attempt = next;
+    }
+  }
+}
+
 // ─── Reply abstraction ────────────────────────────────────────────────────────
 // reply = { text(content, {markdown}), file(absPath), error(msg), done() }
 
@@ -30,7 +86,7 @@ async function handleJob(job) {
   const { chatId, promptText, prefix = "", reply } = job;
 
   try {
-    const { text: responseText } = await sendPrompt(promptText);
+    const { text: responseText } = await sendPromptWithRetry(promptText, reply);
 
     if (!responseText) {
       log(`[QUEUE] Không có nội dung phản hồi`);
