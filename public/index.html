@@ -5,9 +5,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>GEMIBOT</title>
 <link rel="icon" type="image/png" href="/icon.png" />
+<link rel="manifest" href="/manifest.json" />
+<meta name="theme-color" content="#0f1419" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#f5f7fa" media="(prefers-color-scheme: light)" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="GEMIBOT" />
+<link rel="apple-touch-icon" href="/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+<script>
+  // Apply theme as early as possible to avoid flash
+  (function() {
+    const t = localStorage.getItem("theme") || "dark";
+    document.documentElement.setAttribute("data-theme", t);
+  })();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/common.min.js"></script>
 <style>
-  :root {
+  :root, [data-theme="dark"] {
     --bg: #0f1419;
     --panel: #1a1f29;
     --border: #2a3140;
@@ -15,18 +33,43 @@
     --muted: #8a93a3;
     --accent: #4f8cff;
     --user-bg: #2a4d7f;
+    --user-text: #e6e8ec;
     --bot-bg: #1a1f29;
     --error: #ef4444;
+    --code-bg: rgba(0, 0, 0, 0.3);
+    --file-link-bg: rgba(255, 255, 255, 0.08);
+    --scrollbar-hover: #3a4356;
+  }
+  [data-theme="light"] {
+    --bg: #f5f7fa;
+    --panel: #ffffff;
+    --border: #d8deeb;
+    --text: #1a1f29;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --user-bg: #2563eb;
+    --user-text: #ffffff;
+    --bot-bg: #ffffff;
+    --error: #dc2626;
+    --code-bg: rgba(0, 0, 0, 0.06);
+    --file-link-bg: rgba(0, 0, 0, 0.06);
+    --scrollbar-hover: #b4bccc;
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: "Space Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
     background: var(--bg);
     color: var(--text);
     display: flex;
     flex-direction: column;
     height: 100vh;
+  }
+  header, #messages, #composer {
+    width: 100%;
+    max-width: 768px;
+    margin-left: auto;
+    margin-right: auto;
   }
   header {
     padding: 12px 20px;
@@ -66,6 +109,7 @@
   }
   .msg.user {
     background: var(--user-bg);
+    color: var(--user-text);
     align-self: flex-end;
     border-bottom-right-radius: 4px;
   }
@@ -81,14 +125,34 @@
     align-self: flex-start;
   }
   .msg pre {
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--code-bg);
     padding: 10px;
     border-radius: 6px;
     overflow-x: auto;
     font-size: 13px;
+    position: relative;
   }
+  .code-copy-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 3px 6px;
+    color: var(--muted);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+    font-size: 11px;
+    line-height: 0;
+  }
+  .msg pre:hover .code-copy-btn { opacity: 1; }
+  .code-copy-btn:hover { color: var(--text); }
+  .code-copy-btn.copied { color: #4ade80; opacity: 1; }
+  .code-copy-btn .icon-svg { width: 13px; height: 13px; }
   .msg code {
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--code-bg);
     padding: 1px 5px;
     border-radius: 3px;
     font-size: 13px;
@@ -106,7 +170,7 @@
     display: inline-block;
     margin-top: 6px;
     padding: 6px 10px;
-    background: rgba(255,255,255,0.08);
+    background: var(--file-link-bg);
     border-radius: 6px;
     color: var(--accent);
     text-decoration: none;
@@ -194,7 +258,7 @@
   #messages::-webkit-scrollbar-thumb:hover,
   .msg pre::-webkit-scrollbar-thumb:hover,
   .modal-body::-webkit-scrollbar-thumb:hover {
-    background: #3a4356;
+    background: var(--scrollbar-hover);
   }
   button.icon, button.send {
     background: var(--border);
@@ -205,10 +269,29 @@
     cursor: pointer;
     font-size: 14px;
   }
-  button.send { background: var(--accent); }
+  button.send { background: var(--accent); color: #ffffff; }
   button.send:disabled { opacity: 0.5; cursor: not-allowed; }
   button.icon:hover, button.send:hover:not(:disabled) { filter: brightness(1.1); }
+  button.icon { line-height: 0; }
   #fileInput { display: none; }
+
+  /* ─── SVG icons ────────────────────────────────────────── */
+  .icon-svg {
+    width: 1em;
+    height: 1em;
+    display: inline-block;
+    vertical-align: -0.15em;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex-shrink: 0;
+  }
+  button.icon .icon-svg { font-size: 16px; }
+  .chip .icon-svg, .file-link .icon-svg { font-size: 13px; margin-right: 4px; }
+  .modal-header .icon-svg { font-size: 18px; margin-right: 6px; vertical-align: -0.2em; }
+  .icon-svg.error-icon { color: var(--error); margin-right: 6px; font-size: 14px; }
 
   /* ─── Modal ─────────────────────────────────────────────── */
   .modal-overlay {
@@ -317,7 +400,6 @@
   .cron-card .meta {
     font-size: 12px;
     color: var(--muted);
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   .cron-card .prompt {
     font-size: 12px;
@@ -372,6 +454,37 @@
     transition: left 0.15s;
   }
   .switch.on::after { left: 16px; }
+
+  /* ─── Drag overlay ─────────────────────────────────────── */
+  body.dragging::after {
+    content: "Drop files to attach";
+    position: fixed;
+    inset: 0;
+    background: rgba(79, 140, 255, 0.12);
+    border: 3px dashed var(--accent);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent);
+    pointer-events: none;
+  }
+
+  /* ─── Model modal (smaller) ─────────────────────────────── */
+  #modelModal .modal-panel { max-width: 480px; }
+  .current-model-row {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .current-model-row code {
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--text);
+  }
 </style>
 </head>
 <body>
@@ -380,20 +493,46 @@
     <img src="/icon.png" alt="GEMIBOT" class="logo" />
     <span>GEMIBOT</span>
   </span>
-  <span style="display:flex;gap:12px;align-items:center;">
+  <span style="display:flex;gap:8px;align-items:center;">
     <span class="status" id="status">Ready</span>
-    <button class="icon" id="cronBtn" title="Manage cron jobs">⏰</button>
-    <button class="icon" id="clearBtn" title="Clear chat history">🗑</button>
+    <button class="icon" id="modelBtn" title="Change model"></button>
+    <button class="icon" id="resetBtn" title="Reset Gemini session"></button>
+    <button class="icon" id="cronBtn" title="Manage cron jobs"></button>
+    <button class="icon" id="themeBtn" title="Toggle theme"></button>
+    <button class="icon" id="clearBtn" title="Clear chat history"></button>
   </span>
 </header>
 <div id="messages"></div>
 <div id="composer">
   <div id="attachments"></div>
   <div class="input-row">
-    <button class="icon" id="attachBtn" title="Attach file">📎</button>
+    <button class="icon" id="attachBtn" title="Attach file"></button>
     <input type="file" id="fileInput" multiple />
     <textarea id="text" rows="1" placeholder="Type a message... (Enter to send, Shift+Enter for newline)"></textarea>
     <button class="send" id="sendBtn">Send</button>
+  </div>
+</div>
+
+<!-- ─── Model modal ────────────────────────────────────────── -->
+<div class="modal-overlay" id="modelModal">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <span id="modelModalTitle">Model</span>
+      <button id="modelCloseBtn" title="Close"></button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-error" id="modelError"></div>
+      <div class="current-model-row">Current: <code id="currentModel">(loading…)</code></div>
+      <div class="field">
+        <label for="modelInput">Switch to</label>
+        <input type="text" id="modelInput" placeholder="gemini-3-flash-preview" />
+        <span class="hint">Common: <code>gemini-3-flash-preview</code> · <code>gemini-3.1-pro-preview</code> · <code>auto-gemini-3</code></span>
+      </div>
+      <div class="form-actions">
+        <button class="secondary" id="modelCancelBtn">Cancel</button>
+        <button class="primary" id="modelSwitchBtn">Switch</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -401,8 +540,8 @@
 <div class="modal-overlay" id="cronModal">
   <div class="modal-panel">
     <div class="modal-header">
-      <span>⏰ Cron Jobs</span>
-      <button id="cronCloseBtn" title="Close">✕</button>
+      <span id="cronModalTitle">Cron Jobs</span>
+      <button id="cronCloseBtn" title="Close"></button>
     </div>
     <div class="modal-body">
       <div class="modal-error" id="cronError"></div>
@@ -434,6 +573,28 @@
 
 <script>
 const $ = (sel) => document.querySelector(sel);
+
+// ─── SVG icon registry ─────────────────────────────────────────
+const ICON_PATHS = {
+  moon: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  trash: '<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14M10 11v6M14 11v6"/>',
+  paperclip: '<path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
+  close: '<path d="M18 6L6 18M6 6l12 12"/>',
+  alert: '<circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>',
+  edit: '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',
+  copy: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+  check: '<path d="M20 6L9 17l-5-5"/>',
+  refresh: '<path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>',
+  cpu: '<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/>',
+};
+function icon(name, extraClass = "") {
+  const body = ICON_PATHS[name] || "";
+  const cls = "icon-svg" + (extraClass ? " " + extraClass : "");
+  return `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`;
+}
+
 const messagesEl = $("#messages");
 const textEl = $("#text");
 const sendBtn = $("#sendBtn");
@@ -456,12 +617,52 @@ function scrollToBottom() {
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
+function fmtTs(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  return d.toLocaleString();
+}
+
 function addMessage(role, opts = {}) {
   const el = document.createElement("div");
   el.className = `msg ${role}`;
+  if (opts.ts) el.title = fmtTs(opts.ts);
   messagesEl.appendChild(el);
   scrollToBottom();
   return el;
+}
+
+// Post-process code blocks: highlight + add copy button
+function postProcessCode(container) {
+  container.querySelectorAll("pre code").forEach((codeEl) => {
+    if (window.hljs && !codeEl.dataset.highlighted) {
+      try { window.hljs.highlightElement(codeEl); } catch {}
+      codeEl.dataset.highlighted = "1";
+    }
+  });
+  container.querySelectorAll("pre").forEach((pre) => {
+    if (pre.querySelector(".code-copy-btn")) return;
+    const btn = document.createElement("button");
+    btn.className = "code-copy-btn";
+    btn.innerHTML = icon("copy");
+    btn.title = "Copy code";
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      const code = pre.querySelector("code")?.innerText || pre.innerText;
+      try {
+        await navigator.clipboard.writeText(code);
+        btn.classList.add("copied");
+        btn.innerHTML = icon("check");
+        setTimeout(() => {
+          btn.classList.remove("copied");
+          btn.innerHTML = icon("copy");
+        }, 1500);
+      } catch (err) {
+        btn.title = "Copy failed: " + err.message;
+      }
+    };
+    pre.appendChild(btn);
+  });
 }
 
 function renderMarkdown(text) {
@@ -485,8 +686,8 @@ function fileUrl(absPath) {
   return `/api/file?path=${encodeURIComponent(absPath)}`;
 }
 
-function renderUserMessage(text, files) {
-  const el = addMessage("user");
+function renderUserMessage(text, files, ts) {
+  const el = addMessage("user", { ts: ts || Date.now() });
   let html = "";
   if (text) html += `<div>${escapeHtml(text).replace(/\n/g, "<br>")}</div>`;
   for (const f of files) {
@@ -494,7 +695,7 @@ function renderUserMessage(text, files) {
     if (isImg) {
       html += `<img class="attachment" src="${fileUrl(f.path)}" alt="${escapeHtml(f.name)}">`;
     } else {
-      html += `<a class="file-link" href="${fileUrl(f.path)}" target="_blank">📎 ${escapeHtml(f.name)}</a>`;
+      html += `<a class="file-link" href="${fileUrl(f.path)}" target="_blank">${icon("paperclip")}${escapeHtml(f.name)}</a>`;
     }
   }
   setMessageHTML(el, html);
@@ -505,6 +706,7 @@ function renderBotEvent(botEl, event) {
     const div = document.createElement("div");
     div.innerHTML = event.markdown ? renderMarkdown(event.content) : escapeHtml(event.content).replace(/\n/g, "<br>");
     botEl.appendChild(div);
+    if (event.markdown) postProcessCode(div);
   } else if (event.type === "file") {
     const isImg = /\.(png|jpe?g|gif|webp|bmp)$/i.test(event.path);
     if (isImg) {
@@ -518,12 +720,15 @@ function renderBotEvent(botEl, event) {
       a.className = "file-link";
       a.href = fileUrl(event.path);
       a.target = "_blank";
-      a.textContent = `📎 ${event.name}`;
+      a.innerHTML = icon("paperclip") + escapeHtml(event.name);
       botEl.appendChild(a);
     }
   } else if (event.type === "error") {
     botEl.classList.add("error");
-    botEl.appendChild(document.createTextNode("❌ " + event.message));
+    const wrap = document.createElement("span");
+    wrap.innerHTML = icon("alert", "error-icon");
+    wrap.appendChild(document.createTextNode(event.message));
+    botEl.appendChild(wrap);
   }
   scrollToBottom();
 }
@@ -542,7 +747,7 @@ function renderStagedChips() {
   stagedFiles.forEach((f, idx) => {
     const chip = document.createElement("span");
     chip.className = "chip";
-    chip.innerHTML = `📎 ${escapeHtml(f.name)} <button data-idx="${idx}">✕</button>`;
+    chip.innerHTML = `${icon("paperclip")}${escapeHtml(f.name)} <button data-idx="${idx}">${icon("close")}</button>`;
     chip.querySelector("button").onclick = () => {
       stagedFiles.splice(idx, 1);
       renderStagedChips();
@@ -551,21 +756,63 @@ function renderStagedChips() {
   });
 }
 
-attachBtn.onclick = () => fileInput.click();
-
-fileInput.onchange = async () => {
-  if (!fileInput.files.length) return;
+async function stageFiles(fileList) {
+  if (!fileList || !fileList.length) return;
   setStatus("Uploading...");
   try {
-    const uploaded = await uploadStagedFiles(fileInput.files);
+    const uploaded = await uploadStagedFiles(fileList);
     stagedFiles.push(...uploaded);
     renderStagedChips();
     setStatus("Ready");
   } catch (err) {
     setStatus("Upload failed: " + err.message);
   }
+}
+
+attachBtn.onclick = () => fileInput.click();
+
+fileInput.onchange = async () => {
+  await stageFiles(fileInput.files);
   fileInput.value = "";
 };
+
+// Drag-and-drop anywhere on the page
+let dragCounter = 0;
+document.addEventListener("dragenter", (e) => {
+  if (!e.dataTransfer?.types?.includes("Files")) return;
+  dragCounter++;
+  document.body.classList.add("dragging");
+});
+document.addEventListener("dragover", (e) => {
+  if (e.dataTransfer?.types?.includes("Files")) e.preventDefault();
+});
+document.addEventListener("dragleave", () => {
+  dragCounter = Math.max(0, dragCounter - 1);
+  if (dragCounter === 0) document.body.classList.remove("dragging");
+});
+document.addEventListener("drop", async (e) => {
+  e.preventDefault();
+  dragCounter = 0;
+  document.body.classList.remove("dragging");
+  if (e.dataTransfer?.files?.length) await stageFiles(e.dataTransfer.files);
+});
+
+// Paste image / file
+textEl.addEventListener("paste", async (e) => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  const files = [];
+  for (const item of items) {
+    if (item.kind === "file") {
+      const f = item.getAsFile();
+      if (f) files.push(f);
+    }
+  }
+  if (files.length) {
+    e.preventDefault();
+    await stageFiles(files);
+  }
+});
 
 async function sendMessage() {
   const text = textEl.value.trim();
@@ -580,7 +827,7 @@ async function sendMessage() {
   renderStagedChips();
   autoResize();
 
-  const botEl = addMessage("bot");
+  const botEl = addMessage("bot", { ts: Date.now() });
   botEl.innerHTML = `<span class="typing">Thinking...</span>`;
 
   try {
@@ -619,7 +866,7 @@ async function sendMessage() {
     };
   } catch (err) {
     botEl.classList.add("error");
-    botEl.innerHTML = "❌ " + escapeHtml(err.message);
+    botEl.innerHTML = icon("alert", "error-icon") + escapeHtml(err.message);
     setStatus("Error");
     sendBtn.disabled = false;
   }
@@ -634,11 +881,18 @@ textEl.addEventListener("keydown", (e) => {
   }
 });
 
+// Esc closes any open modal
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    document.querySelectorAll(".modal-overlay.open").forEach((m) => m.classList.remove("open"));
+  }
+});
+
 function renderHistoryMessage(msg) {
   if (msg.role === "user") {
-    renderUserMessage(msg.text || "", msg.files || []);
+    renderUserMessage(msg.text || "", msg.files || [], msg.ts);
   } else if (msg.role === "bot") {
-    const el = addMessage("bot");
+    const el = addMessage("bot", { ts: msg.ts });
     const events = msg.events || [];
     if (events.length === 0) {
       el.innerHTML = `<span class="typing">(no response)</span>`;
@@ -840,6 +1094,131 @@ cronModal.onclick = (e) => {
   if (e.target === cronModal) cronModal.classList.remove("open");
 };
 
+// ─── Icon injection (one-time on load) ─────────────────────────
+$("#cronBtn").innerHTML = icon("clock");
+$("#clearBtn").innerHTML = icon("trash");
+$("#attachBtn").innerHTML = icon("paperclip");
+$("#resetBtn").innerHTML = icon("refresh");
+$("#modelBtn").innerHTML = icon("cpu");
+$("#cronCloseBtn").innerHTML = icon("close");
+$("#modelCloseBtn").innerHTML = icon("close");
+$("#cronModalTitle").innerHTML = icon("clock") + " Cron Jobs";
+$("#modelModalTitle").innerHTML = icon("cpu") + " Model";
+
+// ─── Theme toggle ──────────────────────────────────────────────
+
+const themeBtn = $("#themeBtn");
+function applyHighlightTheme(theme) {
+  const url = theme === "light"
+    ? "https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github.min.css"
+    : "https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github-dark.min.css";
+  let link = document.getElementById("hljs-style");
+  if (!link) {
+    link = document.createElement("link");
+    link.id = "hljs-style";
+    link.rel = "stylesheet";
+    document.head.appendChild(link);
+  }
+  link.href = url;
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  themeBtn.innerHTML = icon(theme === "light" ? "sun" : "moon");
+  themeBtn.title = theme === "light" ? "Switch to dark mode" : "Switch to light mode";
+  applyHighlightTheme(theme);
+}
+applyTheme(localStorage.getItem("theme") || "dark");
+themeBtn.onclick = () => {
+  const next = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+  localStorage.setItem("theme", next);
+  applyTheme(next);
+};
+
+// ─── Model modal ───────────────────────────────────────────────
+
+const modelModal = $("#modelModal");
+const modelInput = $("#modelInput");
+const modelErrorEl = $("#modelError");
+const currentModelEl = $("#currentModel");
+
+async function loadCurrentModel() {
+  try {
+    const res = await fetch("/api/model");
+    const { model } = await res.json();
+    currentModelEl.textContent = model || "(default)";
+  } catch {
+    currentModelEl.textContent = "(unknown)";
+  }
+}
+
+$("#modelBtn").onclick = () => {
+  modelErrorEl.classList.remove("show");
+  modelInput.value = "";
+  loadCurrentModel();
+  modelModal.classList.add("open");
+  modelInput.focus();
+};
+$("#modelCloseBtn").onclick = () => modelModal.classList.remove("open");
+$("#modelCancelBtn").onclick = () => modelModal.classList.remove("open");
+modelModal.onclick = (e) => {
+  if (e.target === modelModal) modelModal.classList.remove("open");
+};
+
+$("#modelSwitchBtn").onclick = async () => {
+  const model = modelInput.value.trim();
+  if (!model) {
+    modelErrorEl.textContent = "Model name required.";
+    modelErrorEl.classList.add("show");
+    return;
+  }
+  modelErrorEl.classList.remove("show");
+  $("#modelSwitchBtn").disabled = true;
+  setStatus(`Switching to ${model}...`);
+  try {
+    const res = await fetch("/api/model", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed");
+    setStatus("Ready");
+    currentModelEl.textContent = data.model;
+    modelInput.value = "";
+    modelModal.classList.remove("open");
+  } catch (err) {
+    modelErrorEl.textContent = err.message;
+    modelErrorEl.classList.add("show");
+    setStatus("Error switching model");
+  } finally {
+    $("#modelSwitchBtn").disabled = false;
+  }
+};
+
+modelInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    $("#modelSwitchBtn").click();
+  }
+});
+
+// ─── Reset button ──────────────────────────────────────────────
+
+$("#resetBtn").onclick = async () => {
+  if (!confirm("Reset Gemini session? (Chat history will remain visible — use 🗑 to also clear UI history.)")) return;
+  setStatus("Resetting session...");
+  try {
+    const res = await fetch("/api/reset", { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed");
+    setStatus("Session reset");
+  } catch (err) {
+    setStatus("Reset failed: " + err.message);
+  }
+};
+
+loadCurrentModel();
 loadHistory();
 textEl.focus();
 </script>
