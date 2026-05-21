@@ -28,9 +28,10 @@ function saveLastChatId(chatId) {
 }
 
 const SESSION_FILE = path.join(process.cwd(), "SESSION.md");
-const SESSION_LIMIT = parseInt(process.env.SESSION_HISTORY_LIMIT || "100", 10);
+const SESSION_LIMIT = parseInt(process.env.SESSION_HISTORY_LIMIT || "0", 10);
 
 function appendSession(text) {
+  if (SESSION_LIMIT <= 0) return;
   const timestamp = new Date().toISOString().replace("T", " ").substring(0, 19);
   const line = `[${timestamp}] ${text.replace(/\n/g, " ")}`;
 

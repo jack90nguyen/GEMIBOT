@@ -44,20 +44,13 @@ async function main() {
     if (initialModel) console.log(`🧠 Model: ${initialModel}`);
     console.log(MESSAGES.BOT_READY);
 
-    // Thông báo online NGAY, không đợi injection xong
-    const lastChatId = getLastChatId();
-    if (lastChatId) {
-      bot.sendMessage(lastChatId, `${getBotName()} ${MESSAGES.ONLINE}`);
-      log(`[INIT] Sent online notification to chatId=${lastChatId}`);
-    }
-
     // Đăng ký menu slash command (không cần đợi)
     bot
       .setMyCommands(getCommandMenu())
       .then(() => log(`[INIT] Slash command menu registered`))
       .catch((err) => log(`[INIT] setMyCommands failed`, err.message));
 
-    // Khi injection xong → attach handler + cron + web UI (để tránh race với pendingPrompts)
+    // Khi injection xong → attach handler + cron + web UI + thông báo online
     injectionPromise
       .then(() => {
         log(`[INIT] Init context injected, bot fully ready`);
@@ -67,6 +60,12 @@ async function main() {
         const webPort = parseInt(process.env.WEB_UI_PORT || "8686", 10);
         const webHost = process.env.WEB_UI_HOST || "127.0.0.1";
         webui.start(webPort, webHost);
+
+        const lastChatId = getLastChatId();
+        if (lastChatId) {
+          bot.sendMessage(lastChatId, `${getBotName()} ${MESSAGES.ONLINE}`);
+          log(`[INIT] Sent online notification to chatId=${lastChatId}`);
+        }
       })
       .catch((err) => {
         console.error("Init context injection failed:", err);
