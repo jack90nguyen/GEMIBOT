@@ -6,8 +6,10 @@ const gemini = require("./gemini");
 
 const SESSION_FILE = path.join(process.cwd(), "SESSION.md");
 const RULES_FILE = path.join(process.cwd(), "RULES.md");
+const SESSION_LIMIT = parseInt(process.env.SESSION_HISTORY_LIMIT || "0", 10);
 
 function clearSession() {
+  if (SESSION_LIMIT <= 0) return;
   fs.writeFileSync(SESSION_FILE, "", "utf-8");
   log(`[INIT] SESSION.md cleared`);
 }
@@ -20,7 +22,7 @@ function buildInitContext() {
     parts.push(`These are personalisation rules from the user:\n\n${rulesContent}`);
   }
 
-  if (fs.existsSync(SESSION_FILE)) {
+  if (SESSION_LIMIT > 0 && fs.existsSync(SESSION_FILE)) {
     const sessionHistory = fs.readFileSync(SESSION_FILE, "utf-8").trim();
     if (sessionHistory) {
       parts.push(
