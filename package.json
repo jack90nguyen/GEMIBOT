@@ -1,5 +1,5 @@
 {
-  "name": "bot-gemini",
+  "name": "gemibot",
   "version": "1.0.0",
   "description": "",
   "main": "bridge.js",
@@ -16,6 +16,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@zed-industries/claude-code-acp": "^0.16.2",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "multer": "^2.1.1",

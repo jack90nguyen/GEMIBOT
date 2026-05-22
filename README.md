@@ -1,12 +1,13 @@
-# GEMIBOT — Gemini CLI × Telegram Bridge
+# GEMIBOT — Gemini CLI / Claude Code × Telegram Bridge
 
-Cầu nối giữa **Gemini CLI** (chạy trên máy Mac/Linux) và **Telegram**. Chat với Gemini từ bất kỳ đâu — Gemini CLI xử lý yêu cầu trực tiếp trên máy tính của bạn.
+Cầu nối giữa **AI CLI provider** (Gemini CLI hoặc Claude Code CLI) chạy trên máy Mac/Linux và **Telegram**. Chat với AI từ bất kỳ đâu — provider xử lý yêu cầu trực tiếp trên máy tính của bạn.
 
 ## Tính năng
 
-- **ACP Protocol** — Giao tiếp với Gemini CLI qua Agent Client Protocol (JSON-RPC 2.0 over stdio)
+- **ACP Protocol** — Giao tiếp với provider qua Agent Client Protocol (JSON-RPC 2.0 over stdio)
+- **Multi-provider** — Chọn giữa Gemini CLI và Claude Code CLI qua biến `PROVIDER`
 - **Session management** — Duy trì ngữ cảnh hội thoại xuyên suốt
-- **YOLO mode** — Gemini tự động approve tất cả tool calls, không cần xác nhận thủ công
+- **YOLO / Bypass Permissions** — Provider tự động approve tất cả tool calls, không cần xác nhận thủ công
 - **Model tùy chỉnh** — Cấu hình model qua biến môi trường
 - **Tên bot tuỳ chỉnh** — Đổi tên hiển thị trong tin nhắn qua biến `BOT_NAME`
 - **Group chat** — Cấu hình bot tự động reply hoặc chỉ reply khi được @tag/reply
@@ -20,8 +21,10 @@ Cầu nối giữa **Gemini CLI** (chạy trên máy Mac/Linux) và **Telegram**
 
 ## Yêu cầu hệ thống
 
-- [Gemini CLI](https://geminicli.com) đã cài và đăng nhập (`gemini login`)
 - **Node.js** v18 trở lên
+- Một trong hai provider (tuỳ chọn `PROVIDER` trong `.env`):
+  - [Gemini CLI](https://geminicli.com) đã cài và đăng nhập (`gemini login`) — cho `PROVIDER=gemini`
+  - [Claude Code CLI](https://docs.claude.com/en/docs/claude-code) đã cài và đăng nhập (`claude login`) — cho `PROVIDER=claude`. Adapter `@zed-industries/claude-code-acp` được cài tự động qua `npm install`.
 
 ## Cài đặt
 
@@ -47,7 +50,14 @@ cp MEMORY.example.md MEMORY.md
 # Bắt buộc — lấy từ @BotFather trên Telegram
 TELEGRAM_BOT_TOKEN=your_token_here
 
-# Tuỳ chọn — model mặc định khi khởi động
+# Tuỳ chọn — provider ACP: "gemini" (mặc định) hoặc "claude"
+# - gemini: dùng Gemini CLI (cần `gemini` đã cài và login)
+# - claude: dùng Claude Code CLI qua adapter @zed-industries/claude-code-acp
+#           (cần `claude` đã login; tự động bật bypassPermissions tương đương
+#            `claude --dangerously-skip-permissions`)
+PROVIDER=gemini
+
+# Tuỳ chọn — model mặc định khi khởi động (chỉ áp dụng cho provider=gemini)
 GEMINI_MODEL=gemini-3-flash-preview
 
 # Tuỳ chọn — tên hiển thị của bot trong tin nhắn (mặc định: GEMIBOT 🤖)
@@ -56,6 +66,8 @@ BOT_NAME=GEMIBOT 🤖
 # Tuỳ chọn — chế độ trả lời trong group: "mention" (chỉ khi @tag hoặc reply, mặc định) hoặc "always"
 GROUP_REPLY_MODE=mention
 ```
+
+> **Provider Claude**: model được Claude Code CLI tự quản (qua `claude` config), không dùng `GEMINI_MODEL`.
 
 ## Cách chạy
 
@@ -97,6 +109,7 @@ Khi thấy dòng sau là bot đã sẵn sàng:
 
 ```
 ✅ Đã kết nối thành công với Gemini CLI!
+🤖 Provider: gemini
 🔄 Session ID: ...
 🧠 Model: gemini-3-flash-preview
 🤖 Bot Telegram đã sẵn sàng nhận tin nhắn!
@@ -165,6 +178,7 @@ GEMIBOT/
 │   ├── logger.js       # Log helper với timestamp
 │   ├── constants.js    # Tất cả text/message dùng trong bot
 │   ├── prompts.js      # System rules hardcode (cronjob + file tags)
+│   ├── providers.js    # Provider config (gemini / claude) cho ACP client
 │   ├── gemini.js       # ACP protocol, spawn process, sendPrompt
 │   ├── cronjob.js      # CRUD + schedule cronjobs
 │   ├── tags.js         # Parse [CRONJOB_*] và [SEND_FILE] tags

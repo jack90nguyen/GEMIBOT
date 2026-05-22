@@ -40,6 +40,7 @@ async function main() {
     await initBotInfo();
 
     console.log(MESSAGES.CONNECTED_OK);
+    console.log(`🤖 Provider: ${gemini.getCurrentProvider()}`);
     console.log(`🔄 Session ID: ${gemini.getSessionId()}`);
     if (initialModel) console.log(`🧠 Model: ${initialModel}`);
     console.log(MESSAGES.BOT_READY);
