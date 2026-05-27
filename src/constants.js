@@ -13,13 +13,13 @@ const MESSAGES = {
   CRON_LIST_HEADER: "📋 *Danh sách cronjob của bạn:*\n\n",
 
   // === Console startup / shutdown ===
-  STARTING_GEMINI: "Đang khởi động Gemini CLI trong nền...",
-  CONNECTED_OK: "✅ Đã kết nối thành công với Gemini CLI!",
+  STARTING_GEMINI: "Đang khởi động GEMIBOT trong nền...",
+  CONNECTED_OK: "✅ Đã kết nối thành công với GEMIBOT!",
   BOT_READY: "🤖 Bot Telegram đã sẵn sàng nhận tin nhắn!",
-  GEMINI_INIT_ERROR: "❌ Lỗi khi khởi tạo Gemini:",
-  SHUTTING_DOWN: "\nĐang tắt Gemini CLI và Bot Telegram...",
+  GEMINI_INIT_ERROR: "❌ Lỗi khi khởi tạo ACP-Provider:",
+  SHUTTING_DOWN: "\nĐang tắt GEMIBOT và Bot Telegram...",
   GEMINI_PROCESS_HALT: "Dừng Bot Telegram để đảm bảo an toàn.",
-  GEMINI_CALL_ERROR: "Lỗi khi gọi Gemini:",
+  GEMINI_CALL_ERROR: "Lỗi khi gọi ACP-Provider:",
 
   // === Token validation (console) ===
   MISSING_TOKEN: "❌ Lỗi: Bạn chưa cấu hình TELEGRAM_BOT_TOKEN trong file .env",

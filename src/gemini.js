@@ -166,6 +166,7 @@ async function init({ model } = {}) {
   currentSessionId = sessionData.sessionId;
   log(`[ACP] Session created: ${currentSessionId}`);
   await applyPermissionMode();
+  await applyModel();
   return currentSessionId;
 }
 
@@ -178,6 +179,16 @@ async function applyPermissionMode() {
   log(`[ACP] Permission mode set: ${currentProvider.permissionMode}`);
 }
 
+// Gemini nhận model qua CLI `-m` lúc spawn (buildSpawn). Claude/Codex set qua ACP.
+async function applyModel() {
+  if (currentProvider.modelVia !== "acp" || !currentModel || !currentSessionId) return;
+  await sendToGemini("session/set_model", {
+    sessionId: currentSessionId,
+    modelId: currentModel,
+  });
+  log(`[ACP] Model set: ${currentModel}`);
+}
+
 async function newSession() {
   const sessionData = await sendToGemini("session/new", {
     cwd: process.cwd(),
@@ -186,6 +197,7 @@ async function newSession() {
   currentSessionId = sessionData.sessionId;
   log(`[ACP] New session: ${currentSessionId}`);
   await applyPermissionMode();
+  await applyModel();
   return currentSessionId;
 }
 

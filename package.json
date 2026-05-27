@@ -17,6 +17,7 @@
   "type": "commonjs",
   "dependencies": {
     "@zed-industries/claude-code-acp": "^0.16.2",
+    "@zed-industries/codex-acp": "^0.15.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "multer": "^2.1.1",
