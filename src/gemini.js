@@ -1,10 +1,12 @@
 const { spawn } = require("child_process");
 const readline = require("readline");
 const { log } = require("./logger");
+const { resolveProvider } = require("./providers");
 
 let geminiProcess = null;
 let rl = null;
 let currentModel = null;
+let currentProvider = resolveProvider(process.env.PROVIDER);
 
 let rpcId = 1;
 let currentSessionId = null;
@@ -75,10 +77,9 @@ function attachReadline() {
 
 function spawnGemini(model) {
   currentModel = model || null;
-  const args = ["--acp", "--yolo"];
-  if (currentModel) args.push("-m", currentModel);
+  const { command, args } = currentProvider.buildSpawn({ model: currentModel });
 
-  geminiProcess = spawn("gemini", args, {
+  geminiProcess = spawn(command, args, {
     stdio: ["pipe", "pipe", "inherit"],
     detached: true, // tạo process group riêng để kill được cả con cháu khi restart
   });
@@ -92,7 +93,11 @@ function spawnGemini(model) {
   });
 
   attachReadline();
-  log(`[GEMINI] Process spawned${currentModel ? ` (model=${currentModel})` : ""}`);
+  log(
+    `[ACP] Process spawned provider=${currentProvider.name}${
+      currentModel ? ` model=${currentModel}` : ""
+    }`,
+  );
 }
 
 function sendToGemini(method, params = {}) {
@@ -159,8 +164,29 @@ async function init({ model } = {}) {
   });
 
   currentSessionId = sessionData.sessionId;
-  log(`[GEMINI] Session created: ${currentSessionId}`);
+  log(`[ACP] Session created: ${currentSessionId}`);
+  await applyPermissionMode();
+  await applyModel();
   return currentSessionId;
+}
+
+async function applyPermissionMode() {
+  if (!currentProvider.permissionMode || !currentSessionId) return;
+  await sendToGemini("session/set_mode", {
+    sessionId: currentSessionId,
+    modeId: currentProvider.permissionMode,
+  });
+  log(`[ACP] Permission mode set: ${currentProvider.permissionMode}`);
+}
+
+// Gemini nhận model qua CLI `-m` lúc spawn (buildSpawn). Claude/Codex set qua ACP.
+async function applyModel() {
+  if (currentProvider.modelVia !== "acp" || !currentModel || !currentSessionId) return;
+  await sendToGemini("session/set_model", {
+    sessionId: currentSessionId,
+    modelId: currentModel,
+  });
+  log(`[ACP] Model set: ${currentModel}`);
 }
 
 async function newSession() {
@@ -169,7 +195,9 @@ async function newSession() {
     mcpServers: [],
   });
   currentSessionId = sessionData.sessionId;
-  log(`[GEMINI] New session: ${currentSessionId}`);
+  log(`[ACP] New session: ${currentSessionId}`);
+  await applyPermissionMode();
+  await applyModel();
   return currentSessionId;
 }
 
@@ -224,6 +252,10 @@ function getCurrentModel() {
   return currentModel;
 }
 
+function getCurrentProvider() {
+  return currentProvider.name;
+}
+
 function kill() {
   if (geminiProcess) killProcessTree(geminiProcess, "SIGTERM");
 }
@@ -237,5 +269,6 @@ module.exports = {
   onExit,
   getSessionId,
   getCurrentModel,
+  getCurrentProvider,
   kill,
 };

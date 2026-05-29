@@ -31,7 +31,7 @@ async function main() {
   console.log(MESSAGES.STARTING_GEMINI);
 
   try {
-    const initialModel = loadState().currentModel || process.env.GEMINI_MODEL || null;
+    const initialModel = loadState().currentModel || process.env.PROVIDER_MODEL || null;
     await gemini.init({ model: initialModel });
 
     const injectionPromise = injectInitContext();
@@ -40,6 +40,7 @@ async function main() {
     await initBotInfo();
 
     console.log(MESSAGES.CONNECTED_OK);
+    console.log(`🤖 Provider: ${gemini.getCurrentProvider()}`);
     console.log(`🔄 Session ID: ${gemini.getSessionId()}`);
     if (initialModel) console.log(`🧠 Model: ${initialModel}`);
     console.log(MESSAGES.BOT_READY);
