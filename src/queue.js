@@ -75,7 +75,7 @@ function defaultTelegramReply(chatId) {
         .catch(() => bot.sendMessage(chatId, content));
     },
     file: (filePath) => sendFileToTelegram(chatId, filePath),
-    error: (msg) => bot.sendMessage(chatId, `❌ Lỗi khi giao tiếp với Gemini:\n${msg}`),
+    error: (msg) => bot.sendMessage(chatId, `❌ Lỗi khi giao tiếp với AI Agent:\n${msg}`),
     done: () => {},
   };
 }

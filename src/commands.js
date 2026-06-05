@@ -69,7 +69,7 @@ async function handleCommand(msg, ctx) {
   const parsed = parseCommand(msg.text, ctx.botUsername);
   if (!parsed) return false;
   const fn = handlers[parsed.name];
-  if (!fn) return false; // fall-through cho Gemini xử lý như prompt thường
+  if (!fn) return false; // fall-through cho AI Agent xử lý như prompt thường
 
   log(`[CMD] /${parsed.name} from chatId=${msg.chat.id}`, parsed.args || "(no args)");
   try {
@@ -86,7 +86,7 @@ async function handleCommand(msg, ctx) {
 function getCommandMenu() {
   return [
     { command: "reset", description: "Xoá session, bắt đầu phiên mới" },
-    { command: "model", description: "Xem hoặc đổi model Gemini" },
+    { command: "model", description: "Xem hoặc đổi model AI Agent" },
     { command: "crons", description: "Liệt kê cronjob của bạn" },
   ];
 }

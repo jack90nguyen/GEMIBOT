@@ -14,7 +14,7 @@ Cầu nối giữa **AI CLI provider** (Gemini CLI, Claude Code CLI hoặc Codex
 - **System Rules** — Rules hệ thống hardcode trong code, không phụ thuộc file cá nhân
 - **RULES.md** — Inject persona/rules cá nhân hóa vào đầu mỗi session
 - **Cronjob** — Đặt lịch chạy prompt định kỳ, AI tự hiểu và lưu lịch khi user yêu cầu
-- **Gửi/nhận file** — Nhận file từ Telegram, gửi file/ảnh từ Gemini về Telegram qua tag `[SEND_FILE]`
+- **Gửi/nhận file** — Nhận file từ Telegram, gửi file/ảnh từ AI Agent về Telegram qua tag `[SEND_FILE]`
 - **Message Queue** — Xử lý tuần tự, không mất tin khi nhận nhiều message cùng lúc
 - **Thông báo online** — Gửi tin nhắn đến chatId gần nhất khi bot khởi động xong
 - **Debug logs** — Log chi tiết theo thời gian thực để dễ theo dõi
@@ -123,7 +123,7 @@ tail -f logs/gemibot.err.log
 Khi thấy dòng sau là bot đã sẵn sàng:
 
 ```
-✅ Đã kết nối thành công với Gemini CLI!
+✅ Đã kết nối thành công với GEMIBOT!
 🤖 Provider: gemini
 🔄 Session ID: ...
 🧠 Model: gemini-3-flash-preview

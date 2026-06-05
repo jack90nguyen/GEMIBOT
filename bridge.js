@@ -16,9 +16,9 @@ const { injectInitContext } = require("./src/initContext");
 const { handleCommand, getCommandMenu } = require("./src/commands");
 const webui = require("./src/webui");
 
-// Bắt lỗi nếu tiến trình Gemini bị crash ngoài ý muốn
+// Bắt lỗi nếu tiến trình AI Agent bị crash ngoài ý muốn
 gemini.onExit((code) => {
-  console.error(`❌ Tiến trình Gemini CLI đã thoát với mã: ${code}`);
+  console.error(`❌ Tiến trình AI Agent đã thoát với mã: ${code}`);
   console.error(MESSAGES.GEMINI_PROCESS_HALT);
   bot.stopPolling();
   process.exit(code || 1);

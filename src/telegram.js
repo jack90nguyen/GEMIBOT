@@ -163,7 +163,7 @@ function setupMessageHandler(enqueue, getSessionId, handleCommand) {
     // Lưu lại chatId gần nhất để dùng khi bot restart
     if (isPrivate) saveLastChatId(chatId);
 
-    // Intercept slash command trước khi đẩy vào Gemini
+    // Intercept slash command trước khi đẩy vào AI Agent
     const textForCmd = mention && msg.text ? stripMention(msg.text, mention) : msg.text;
     if (handleCommand && textForCmd && textForCmd.startsWith("/")) {
       const cmdMsg = { ...msg, text: textForCmd };

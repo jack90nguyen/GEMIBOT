@@ -8,10 +8,10 @@ function makeSvc() {
   const { Service } = require("node-windows");
   return new Service({
     name: SERVICE_NAME,
-    description: "Gemini CLI × Telegram Bridge",
+    description: "AI Agent × Telegram Bridge",
     script: path.join(PROJECT_ROOT, "bridge.js"),
     workingDirectory: PROJECT_ROOT,
-    // Bỏ comment và điền thông tin nếu Gemini CLI báo lỗi xác thực:
+    // Bỏ comment và điền thông tin nếu AI Agent CLI báo lỗi xác thực:
     // logOnAs: { account: "TÊN_USER_WINDOWS", password: "MẬT_KHẨU" }
   });
 }

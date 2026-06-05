@@ -7,7 +7,7 @@ const MESSAGES = {
   // === Telegram (gửi cho user) ===
   ONLINE: "🤖 đã online, sẵn sàng đợi lệnh! 🫡",
   THINKING: "🧠 đang suy nghĩ...",
-  NO_RESPONSE: "Xin lỗi, không có phản hồi từ Gemini.",
+  NO_RESPONSE: "Xin lỗi, không có phản hồi từ AI Agent.",
   UNKNOWN_ERROR: "Đã xảy ra lỗi không xác định.",
   CRON_LIST_EMPTY: "📭 Bạn chưa có cronjob nào.",
   CRON_LIST_HEADER: "📋 *Danh sách cronjob của bạn:*\n\n",
