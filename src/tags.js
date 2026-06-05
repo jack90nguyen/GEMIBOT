@@ -1,7 +1,7 @@
 const { log } = require("./logger");
 const { addCron, removeCron, getCronsForChat, formatCronList } = require("./cronjob");
 
-// Parse các system tags trong response của Gemini:
+// Parse các system tags trong response của AI Agent:
 //   [SEND_FILE]...[/SEND_FILE]
 //   [CRONJOB_ADD]{...}[/CRONJOB_ADD]
 //   [CRONJOB_DEL]{...}[/CRONJOB_DEL]

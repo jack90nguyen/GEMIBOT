@@ -1,7 +1,7 @@
 {
   "name": "GEMIBOT",
   "short_name": "GEMIBOT",
-  "description": "Chat with Gemini CLI via Telegram bridge",
+  "description": "Chat with AI Agent via Telegram bridge",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

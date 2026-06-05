@@ -14,7 +14,7 @@ Cầu nối giữa **AI CLI provider** (Gemini CLI, Claude Code CLI hoặc Codex
 - **System Rules** — Rules hệ thống hardcode trong code, không phụ thuộc file cá nhân
 - **RULES.md** — Inject persona/rules cá nhân hóa vào đầu mỗi session
 - **Cronjob** — Đặt lịch chạy prompt định kỳ, AI tự hiểu và lưu lịch khi user yêu cầu
-- **Gửi/nhận file** — Nhận file từ Telegram, gửi file/ảnh từ Gemini về Telegram qua tag `[SEND_FILE]`
+- **Gửi/nhận file** — Nhận file từ Telegram, gửi file/ảnh từ AI Agent về Telegram qua tag `[SEND_FILE]`
 - **Message Queue** — Xử lý tuần tự, không mất tin khi nhận nhiều message cùng lúc
 - **Thông báo online** — Gửi tin nhắn đến chatId gần nhất khi bot khởi động xong
 - **Debug logs** — Log chi tiết theo thời gian thực để dễ theo dõi
@@ -72,11 +72,17 @@ BOT_NAME=GEMIBOT 🤖
 
 # Tuỳ chọn — chế độ trả lời trong group: "mention" (chỉ khi @tag hoặc reply, mặc định) hoặc "always"
 GROUP_REPLY_MODE=mention
+
+# Tuỳ chọn — mật khẩu bảo vệ Web UI. Để trống = không yêu cầu đăng nhập (chỉ nên dùng localhost).
+# Khi expose ra mạng (WEB_UI_HOST=0.0.0.0), BẮT BUỘC đặt. Đăng nhập nhớ 30 ngày qua cookie.
+WEB_UI_PASSWORD=
 ```
 
 > **Cách áp model**: Gemini nhận model qua tham số CLI `-m` lúc khởi động; Claude/Codex set qua ACP (`session/set_model`) sau khi tạo session. Lệnh `/model <tên>` hoạt động cho cả ba.
 >
 > **Lưu ý**: Claude/Codex **không báo lỗi nếu tên model sai** — sẽ âm thầm dùng model mặc định. Gemini sai model sẽ lỗi khi khởi động.
+
+> **Bảo mật Web UI**: đặt `WEB_UI_PASSWORD` để yêu cầu đăng nhập (cookie HttpOnly, nhớ 30 ngày). Khi deploy lên server và truy cập từ xa, nên đặt sau HTTPS (reverse proxy) để bảo vệ mật khẩu trên đường truyền.
 
 ## Cách chạy
 
@@ -117,7 +123,7 @@ tail -f logs/gemibot.err.log
 Khi thấy dòng sau là bot đã sẵn sàng:
 
 ```
-✅ Đã kết nối thành công với Gemini CLI!
+✅ Đã kết nối thành công với GEMIBOT!
 🤖 Provider: gemini
 🔄 Session ID: ...
 🧠 Model: gemini-3-flash-preview

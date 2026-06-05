@@ -67,7 +67,7 @@
   }
   header, #messages, #composer {
     width: 100%;
-    max-width: 768px;
+    max-width: 1024px;
     margin-left: auto;
     margin-right: auto;
   }
@@ -496,7 +496,7 @@
   <span style="display:flex;gap:8px;align-items:center;">
     <span class="status" id="status">Ready</span>
     <button class="icon" id="modelBtn" title="Change model"></button>
-    <button class="icon" id="resetBtn" title="Reset Gemini session"></button>
+    <button class="icon" id="resetBtn" title="Reset AI Agent session"></button>
     <button class="icon" id="cronBtn" title="Manage cron jobs"></button>
     <button class="icon" id="themeBtn" title="Toggle theme"></button>
     <button class="icon" id="clearBtn" title="Clear chat history"></button>
@@ -526,7 +526,7 @@
       <div class="field">
         <label for="modelInput">Switch to</label>
         <input type="text" id="modelInput" placeholder="gemini-3-flash-preview" />
-        <span class="hint">Common: <code>gemini-3-flash-preview</code> · <code>gemini-3.1-pro-preview</code> · <code>auto-gemini-3</code></span>
+        <span class="hint">gemini: <code>gemini-3-flash-preview</code> · <code>gemini-3-pro-preview</code> — claude: <code>default</code> · <code>sonnet</code> · <code>haiku</code> — codex: <code>gpt-5.5</code> · <code>gpt-5.4</code></span>
       </div>
       <div class="form-actions">
         <button class="secondary" id="modelCancelBtn">Cancel</button>
@@ -571,8 +571,36 @@
   </div>
 </div>
 
+<!-- ─── Login modal ────────────────────────────────────────── -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal-panel" style="max-width:380px;">
+    <div class="modal-header">
+      <span>🔒 Đăng nhập</span>
+    </div>
+    <div class="modal-body">
+      <div class="modal-error" id="loginError"></div>
+      <div class="field">
+        <label for="loginPassword">Mật khẩu</label>
+        <input type="password" id="loginPassword" placeholder="Nhập mật khẩu" autocomplete="current-password" />
+        <span class="hint">Phiên đăng nhập được ghi nhớ 30 ngày trên thiết bị này.</span>
+      </div>
+      <div class="form-actions">
+        <button class="primary" id="loginBtn">Vào</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 const $ = (sel) => document.querySelector(sel);
+
+// ─── Auth: cookie HttpOnly do server quản; UI chỉ cần hiện form khi gặp 401 ──
+const _fetch = window.fetch.bind(window);
+window.fetch = async (...args) => {
+  const res = await _fetch(...args);
+  if (res.status === 401) showLogin();
+  return res;
+};
 
 // ─── SVG icon registry ─────────────────────────────────────────
 const ICON_PATHS = {
@@ -881,10 +909,12 @@ textEl.addEventListener("keydown", (e) => {
   }
 });
 
-// Esc closes any open modal
+// Esc closes any open modal (trừ login — bắt buộc đăng nhập)
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    document.querySelectorAll(".modal-overlay.open").forEach((m) => m.classList.remove("open"));
+    document.querySelectorAll(".modal-overlay.open").forEach((m) => {
+      if (m.id !== "loginModal") m.classList.remove("open");
+    });
   }
 });
 
@@ -1206,7 +1236,7 @@ modelInput.addEventListener("keydown", (e) => {
 // ─── Reset button ──────────────────────────────────────────────
 
 $("#resetBtn").onclick = async () => {
-  if (!confirm("Reset Gemini session? (Chat history will remain visible — use 🗑 to also clear UI history.)")) return;
+  if (!confirm("Reset AI Agent session? (Chat history will remain visible — use 🗑 to also clear UI history.)")) return;
   setStatus("Resetting session...");
   try {
     const res = await fetch("/api/reset", { method: "POST" });
@@ -1218,9 +1248,65 @@ $("#resetBtn").onclick = async () => {
   }
 };
 
-loadCurrentModel();
-loadHistory();
-textEl.focus();
+// ─── Login flow ────────────────────────────────────────────────
+const loginModal = $("#loginModal");
+const loginPassword = $("#loginPassword");
+const loginError = $("#loginError");
+
+function showLogin() {
+  if (loginModal.classList.contains("open")) return;
+  loginModal.classList.add("open");
+  loginPassword.focus();
+}
+function hideLogin() {
+  loginModal.classList.remove("open");
+}
+
+async function doLogin() {
+  const password = loginPassword.value;
+  if (!password) return;
+  loginError.textContent = "";
+  try {
+    const res = await _fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      loginError.textContent = data.error || "Đăng nhập thất bại";
+      return;
+    }
+    loginPassword.value = "";
+    hideLogin();
+    startApp();
+  } catch (err) {
+    loginError.textContent = err.message;
+  }
+}
+$("#loginBtn").onclick = doLogin;
+loginPassword.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); doLogin(); }
+});
+
+// ─── Boot ──────────────────────────────────────────────────────
+function startApp() {
+  loadCurrentModel();
+  loadHistory();
+  textEl.focus();
+}
+
+async function boot() {
+  try {
+    const res = await _fetch("/api/auth");
+    const { authed } = await res.json();
+    if (!authed) return showLogin();
+  } catch {
+    return showLogin();
+  }
+  startApp();
+}
+boot();
 </script>
 </body>
 </html>
