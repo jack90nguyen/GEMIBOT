@@ -571,8 +571,36 @@
   </div>
 </div>
 
+<!-- ─── Login modal ────────────────────────────────────────── -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal-panel" style="max-width:380px;">
+    <div class="modal-header">
+      <span>🔒 Đăng nhập</span>
+    </div>
+    <div class="modal-body">
+      <div class="modal-error" id="loginError"></div>
+      <div class="field">
+        <label for="loginPassword">Mật khẩu</label>
+        <input type="password" id="loginPassword" placeholder="Nhập mật khẩu" autocomplete="current-password" />
+        <span class="hint">Phiên đăng nhập được ghi nhớ 30 ngày trên thiết bị này.</span>
+      </div>
+      <div class="form-actions">
+        <button class="primary" id="loginBtn">Vào</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 const $ = (sel) => document.querySelector(sel);
+
+// ─── Auth: cookie HttpOnly do server quản; UI chỉ cần hiện form khi gặp 401 ──
+const _fetch = window.fetch.bind(window);
+window.fetch = async (...args) => {
+  const res = await _fetch(...args);
+  if (res.status === 401) showLogin();
+  return res;
+};
 
 // ─── SVG icon registry ─────────────────────────────────────────
 const ICON_PATHS = {
@@ -881,10 +909,12 @@ textEl.addEventListener("keydown", (e) => {
   }
 });
 
-// Esc closes any open modal
+// Esc closes any open modal (trừ login — bắt buộc đăng nhập)
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    document.querySelectorAll(".modal-overlay.open").forEach((m) => m.classList.remove("open"));
+    document.querySelectorAll(".modal-overlay.open").forEach((m) => {
+      if (m.id !== "loginModal") m.classList.remove("open");
+    });
   }
 });
 
@@ -1218,9 +1248,65 @@ $("#resetBtn").onclick = async () => {
   }
 };
 
-loadCurrentModel();
-loadHistory();
-textEl.focus();
+// ─── Login flow ────────────────────────────────────────────────
+const loginModal = $("#loginModal");
+const loginPassword = $("#loginPassword");
+const loginError = $("#loginError");
+
+function showLogin() {
+  if (loginModal.classList.contains("open")) return;
+  loginModal.classList.add("open");
+  loginPassword.focus();
+}
+function hideLogin() {
+  loginModal.classList.remove("open");
+}
+
+async function doLogin() {
+  const password = loginPassword.value;
+  if (!password) return;
+  loginError.textContent = "";
+  try {
+    const res = await _fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      loginError.textContent = data.error || "Đăng nhập thất bại";
+      return;
+    }
+    loginPassword.value = "";
+    hideLogin();
+    startApp();
+  } catch (err) {
+    loginError.textContent = err.message;
+  }
+}
+$("#loginBtn").onclick = doLogin;
+loginPassword.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); doLogin(); }
+});
+
+// ─── Boot ──────────────────────────────────────────────────────
+function startApp() {
+  loadCurrentModel();
+  loadHistory();
+  textEl.focus();
+}
+
+async function boot() {
+  try {
+    const res = await _fetch("/api/auth");
+    const { authed } = await res.json();
+    if (!authed) return showLogin();
+  } catch {
+    return showLogin();
+  }
+  startApp();
+}
+boot();
 </script>
 </body>
 </html>

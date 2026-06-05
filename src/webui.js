@@ -2,7 +2,7 @@ const express = require("express");
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
-const { randomUUID } = require("crypto");
+const { randomUUID, createHash, timingSafeEqual } = require("crypto");
 const { log } = require("./logger");
 const { enqueue } = require("./queue");
 const { appendSession, loadState, saveState } = require("./telegram");
@@ -12,6 +12,48 @@ const gemini = require("./gemini");
 const { injectInitContext, clearSession } = require("./initContext");
 
 const WEB_CHAT_ID = "__web__";
+
+// ─── Auth ───────────────────────────────────────────────────────────────────
+// Bật khi WEB_UI_PASSWORD được set; cookie HttpOnly giữ đăng nhập 30 ngày.
+const AUTH_COOKIE = "web_auth";
+const COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 ngày (giây)
+const WEB_PASSWORD = process.env.WEB_UI_PASSWORD || "";
+const AUTH_ENABLED = WEB_PASSWORD.length > 0;
+const EXPECTED_TOKEN = AUTH_ENABLED
+  ? createHash("sha256").update(WEB_PASSWORD).digest("hex")
+  : "";
+
+function hashPassword(pw) {
+  return createHash("sha256").update(pw).digest("hex");
+}
+
+function safeEqual(a, b) {
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
+function parseCookies(header) {
+  const out = {};
+  if (!header) return out;
+  for (const part of header.split(";")) {
+    const idx = part.indexOf("=");
+    if (idx === -1) continue;
+    const k = part.slice(0, idx).trim();
+    if (k) out[k] = decodeURIComponent(part.slice(idx + 1).trim());
+  }
+  return out;
+}
+
+function isAuthed(req) {
+  if (!AUTH_ENABLED) return true;
+  const token = parseCookies(req.headers.cookie)[AUTH_COOKIE];
+  return !!token && safeEqual(token, EXPECTED_TOKEN);
+}
+
+function requireAuth(req, res, next) {
+  if (isAuthed(req)) return next();
+  res.status(401).json({ error: "unauthorized" });
+}
 
 // ─── Emitter (per request) ────────────────────────────────────────────────────
 
@@ -85,7 +127,36 @@ function start(port, host) {
   history.loadSync();
   const app = express();
   app.use(express.json({ limit: "1mb" }));
+
+  // Static shell (login screen render từ đây) — không cần auth
   app.use(express.static(path.join(process.cwd(), "public")));
+
+  // ─── Auth endpoints (không cần auth) ────────────────────────────────────────
+  app.get("/api/auth", (req, res) => {
+    res.json({ authed: isAuthed(req), required: AUTH_ENABLED });
+  });
+
+  app.post("/api/login", (req, res) => {
+    if (!AUTH_ENABLED) return res.json({ ok: true });
+    const { password } = req.body || {};
+    if (typeof password !== "string" || !password) {
+      return res.status(400).json({ error: "password required" });
+    }
+    if (!safeEqual(hashPassword(password), EXPECTED_TOKEN)) {
+      log(`[WEB] Login failed`);
+      return res.status(401).json({ error: "Sai mật khẩu" });
+    }
+    res.setHeader(
+      "Set-Cookie",
+      `${AUTH_COOKIE}=${EXPECTED_TOKEN}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${COOKIE_MAX_AGE}`,
+    );
+    log(`[WEB] Login success`);
+    res.json({ ok: true });
+  });
+
+  // Chặn mọi API/data còn lại nếu chưa đăng nhập
+  app.use("/api", requireAuth);
+  app.use("/files", requireAuth);
 
   // Serve uploaded files for inline preview (images) and download
   app.use("/files", express.static(uploadDir));
@@ -290,7 +361,10 @@ function start(port, host) {
   });
 
   app.listen(port, host, () => {
-    log(`[WEB] UI listening on http://${host}:${port}`);
+    log(
+      `[WEB] UI listening on http://${host}:${port}` +
+        (AUTH_ENABLED ? " (auth enabled)" : " (no auth — WEB_UI_PASSWORD not set)"),
+    );
   });
 }
 

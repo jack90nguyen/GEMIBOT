@@ -72,11 +72,17 @@ BOT_NAME=GEMIBOT 🤖
 
 # Tuỳ chọn — chế độ trả lời trong group: "mention" (chỉ khi @tag hoặc reply, mặc định) hoặc "always"
 GROUP_REPLY_MODE=mention
+
+# Tuỳ chọn — mật khẩu bảo vệ Web UI. Để trống = không yêu cầu đăng nhập (chỉ nên dùng localhost).
+# Khi expose ra mạng (WEB_UI_HOST=0.0.0.0), BẮT BUỘC đặt. Đăng nhập nhớ 30 ngày qua cookie.
+WEB_UI_PASSWORD=
 ```
 
 > **Cách áp model**: Gemini nhận model qua tham số CLI `-m` lúc khởi động; Claude/Codex set qua ACP (`session/set_model`) sau khi tạo session. Lệnh `/model <tên>` hoạt động cho cả ba.
 >
 > **Lưu ý**: Claude/Codex **không báo lỗi nếu tên model sai** — sẽ âm thầm dùng model mặc định. Gemini sai model sẽ lỗi khi khởi động.
+
+> **Bảo mật Web UI**: đặt `WEB_UI_PASSWORD` để yêu cầu đăng nhập (cookie HttpOnly, nhớ 30 ngày). Khi deploy lên server và truy cập từ xa, nên đặt sau HTTPS (reverse proxy) để bảo vệ mật khẩu trên đường truyền.
 
 ## Cách chạy
 
