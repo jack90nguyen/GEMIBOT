@@ -2,7 +2,7 @@ const path = require("path");
 const { execSync } = require("child_process");
 
 const PROJECT_ROOT = path.resolve(__dirname, "..");
-const SERVICE_NAME = "GEMIBOT";
+const SERVICE_NAME = "ONEBOT";
 
 function makeSvc() {
   const { Service } = require("node-windows");

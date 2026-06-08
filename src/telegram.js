@@ -52,14 +52,17 @@ function appendSession(text) {
 }
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_ENABLED = !!token && token !== "YOUR_TELEGRAM_BOT_TOKEN_HERE";
 
-if (!token || token === "YOUR_TELEGRAM_BOT_TOKEN_HERE") {
-  console.error(MESSAGES.MISSING_TOKEN);
-  console.error(MESSAGES.MISSING_TOKEN_HINT);
-  process.exit(1);
+let bot;
+if (TELEGRAM_ENABLED) {
+  bot = new TelegramBot(token, { polling: true });
+} else {
+  console.warn(MESSAGES.WEB_ONLY_MODE);
+  // Stub no-op: mọi bot.method(...) trả Promise rỗng để các nhánh dùng chung
+  // (queue, shutdown) không crash khi Telegram bị tắt.
+  bot = new Proxy({}, { get: () => () => Promise.resolve() });
 }
-
-const bot = new TelegramBot(token, { polling: true });
 
 const GROUP_REPLY_MODE = (process.env.GROUP_REPLY_MODE || "mention").toLowerCase();
 
@@ -224,4 +227,4 @@ function setupMessageHandler(enqueue, getSessionId, handleCommand) {
   });
 }
 
-module.exports = { bot, reactToMessage, sendFileToTelegram, setupMessageHandler, getLastChatId, initBotInfo, loadState, saveState, appendSession };
+module.exports = { bot, TELEGRAM_ENABLED, reactToMessage, sendFileToTelegram, setupMessageHandler, getLastChatId, initBotInfo, loadState, saveState, appendSession };

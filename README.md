@@ -1,4 +1,4 @@
-# GEMIBOT — Gemini CLI / Claude Code / Codex × Telegram Bridge
+# ONEBOT — Gemini CLI / Claude Code / Codex × Telegram Bridge
 
 Cầu nối giữa **AI CLI provider** (Gemini CLI, Claude Code CLI hoặc Codex CLI) chạy trên máy Mac/Linux và **Telegram**. Chat với AI từ bất kỳ đâu — provider xử lý yêu cầu trực tiếp trên máy tính của bạn.
 
@@ -32,7 +32,7 @@ Cầu nối giữa **AI CLI provider** (Gemini CLI, Claude Code CLI hoặc Codex
 ```bash
 # 1. Clone repo
 git clone <repo-url>
-cd GEMIBOT
+cd ONEBOT
 
 # 2. Cài dependencies
 npm install
@@ -67,8 +67,8 @@ PROVIDER=gemini
 #   codex:  gpt-5.5 | gpt-5.4 | gpt-5.4-mini | gpt-5.3-codex
 PROVIDER_MODEL=
 
-# Tuỳ chọn — tên hiển thị của bot trong tin nhắn (mặc định: GEMIBOT 🤖)
-BOT_NAME=GEMIBOT 🤖
+# Tuỳ chọn — tên hiển thị của bot trong tin nhắn (mặc định: ONEBOT 🤖)
+BOT_NAME=ONEBOT 🤖
 
 # Tuỳ chọn — chế độ trả lời trong group: "mention" (chỉ khi @tag hoặc reply, mặc định) hoặc "always"
 GROUP_REPLY_MODE=mention
@@ -110,20 +110,20 @@ npm run service:uninstall
 
 ```bash
 # Xem log
-tail -f logs/gemibot.log
-tail -f logs/gemibot.err.log
+tail -f logs/onebot.log
+tail -f logs/onebot.err.log
 ```
 
 **Windows** — mở terminal (PowerShell / CMD) **as Administrator** rồi chạy `npm run service:install`. Dùng Windows Service qua `node-windows`.
 
 > **Lưu ý Windows**: nếu Gemini CLI báo lỗi xác thực, mở `scripts/service-win.js`, bỏ comment block `logOnAs` và điền username/password của user Windows, rồi chạy lại `service:install`.
 >
-> Xem log: vào **services.msc** → GEMIBOT → Properties, hoặc xem thư mục `daemon/` trong project.
+> Xem log: vào **services.msc** → ONEBOT → Properties, hoặc xem thư mục `daemon/` trong project.
 
 Khi thấy dòng sau là bot đã sẵn sàng:
 
 ```
-✅ Đã kết nối thành công với GEMIBOT!
+✅ Đã kết nối thành công với ONEBOT!
 🤖 Provider: gemini
 🔄 Session ID: ...
 🧠 Model: gemini-3-flash-preview
@@ -141,7 +141,7 @@ Ví dụ nội dung:
 
 ```markdown
 ## IDENTITY
-- Tên: GEMIBOT
+- Tên: ONEBOT
 - Vai trò: lập trình viên đa năng
 
 ## RULES
@@ -183,7 +183,7 @@ Dữ liệu lịch được lưu vào `crons.json` và tự động khôi phục
 ## Cấu trúc project
 
 ```
-GEMIBOT/
+ONEBOT/
 ├── bridge.js           # Entry point — bootstrap & wiring
 ├── scripts/
 │   ├── service.js      # Entrypoint: detect platform, dispatch
