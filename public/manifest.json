@@ -1,6 +1,6 @@
 {
-  "name": "GEMIBOT",
-  "short_name": "GEMIBOT",
+  "name": "ONEBOT",
+  "short_name": "ONEBOT",
   "description": "Chat with AI Agent via Telegram bridge",
   "start_url": "/",
   "scope": "/",

@@ -3,7 +3,7 @@ const path = require("path");
 const os = require("os");
 const { execSync } = require("child_process");
 
-const SERVICE_NAME = "com.gemibot.bridge";
+const SERVICE_NAME = "com.onebot.bridge";
 const PROJECT_ROOT = path.resolve(__dirname, "..");
 const PLIST_PATH = path.join(os.homedir(), "Library", "LaunchAgents", `${SERVICE_NAME}.plist`);
 const LOGS_DIR = path.join(PROJECT_ROOT, "logs");
@@ -27,9 +27,9 @@ function buildPlist() {
   <key>KeepAlive</key>
   <true/>
   <key>StandardOutPath</key>
-  <string>${path.join(LOGS_DIR, "gemibot.log")}</string>
+  <string>${path.join(LOGS_DIR, "onebot.log")}</string>
   <key>StandardErrorPath</key>
-  <string>${path.join(LOGS_DIR, "gemibot.err.log")}</string>
+  <string>${path.join(LOGS_DIR, "onebot.err.log")}</string>
 </dict>
 </plist>`;
 }
@@ -44,7 +44,7 @@ exports.install = function () {
 
   console.log(`✅ Service installed: ${SERVICE_NAME}`);
   console.log(`   Plist: ${PLIST_PATH}`);
-  console.log(`   Logs:  ${LOGS_DIR}/gemibot.log`);
+  console.log(`   Logs:  ${LOGS_DIR}/onebot.log`);
 };
 
 exports.uninstall = function () {
