@@ -144,7 +144,7 @@ function start(port, host) {
     }
     if (!safeEqual(hashPassword(password), EXPECTED_TOKEN)) {
       log(`[WEB] Login failed`);
-      return res.status(401).json({ error: "Sai mật khẩu" });
+      return res.status(401).json({ error: "Wrong password" });
     }
     res.setHeader(
       "Set-Cookie",

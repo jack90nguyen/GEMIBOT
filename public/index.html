@@ -18,7 +18,7 @@
 <script>
   // Apply theme as early as possible to avoid flash
   (function() {
-    const t = localStorage.getItem("theme") || "dark";
+    const t = localStorage.getItem("theme") || "light";
     document.documentElement.setAttribute("data-theme", t);
   })();
 </script>
@@ -575,17 +575,17 @@
 <div class="modal-overlay" id="loginModal">
   <div class="modal-panel" style="max-width:380px;">
     <div class="modal-header">
-      <span>🔒 Đăng nhập</span>
+      <span>🔒 Sign in</span>
     </div>
     <div class="modal-body">
       <div class="modal-error" id="loginError"></div>
       <div class="field">
-        <label for="loginPassword">Mật khẩu</label>
-        <input type="password" id="loginPassword" placeholder="Nhập mật khẩu" autocomplete="current-password" />
-        <span class="hint">Phiên đăng nhập được ghi nhớ 30 ngày trên thiết bị này.</span>
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" placeholder="Enter password" autocomplete="current-password" />
+        <span class="hint">Your session is remembered for 30 days on this device.</span>
       </div>
       <div class="form-actions">
-        <button class="primary" id="loginBtn">Vào</button>
+        <button class="primary" id="loginBtn">Sign in</button>
       </div>
     </div>
   </div>
@@ -882,6 +882,7 @@ async function sendMessage() {
         if (firstEvent) botEl.innerHTML = `<span class="typing">(no response)</span>`;
         setStatus("Ready");
         sendBtn.disabled = false;
+        scrollToBottom();
       } else {
         renderBotEvent(botEl, event);
       }
@@ -937,6 +938,10 @@ async function loadHistory() {
     const res = await fetch("/api/history");
     const { messages } = await res.json();
     for (const msg of messages) renderHistoryMessage(msg);
+    scrollToBottom();
+    messagesEl.querySelectorAll("img").forEach((img) => {
+      if (!img.complete) img.addEventListener("load", scrollToBottom, { once: true });
+    });
   } catch (err) {
     setStatus("Failed to load history: " + err.message);
   }
@@ -1158,7 +1163,7 @@ function applyTheme(theme) {
   themeBtn.title = theme === "light" ? "Switch to dark mode" : "Switch to light mode";
   applyHighlightTheme(theme);
 }
-applyTheme(localStorage.getItem("theme") || "dark");
+applyTheme(localStorage.getItem("theme") || "light");
 themeBtn.onclick = () => {
   const next = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
   localStorage.setItem("theme", next);
@@ -1274,7 +1279,7 @@ async function doLogin() {
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      loginError.textContent = data.error || "Đăng nhập thất bại";
+      loginError.textContent = data.error || "Login failed";
       return;
     }
     loginPassword.value = "";
