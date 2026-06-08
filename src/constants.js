@@ -16,6 +16,8 @@ const MESSAGES = {
   STARTING_GEMINI: "Đang khởi động GEMIBOT trong nền...",
   CONNECTED_OK: "✅ Đã kết nối thành công với GEMIBOT!",
   BOT_READY: "🤖 Bot Telegram đã sẵn sàng nhận tin nhắn!",
+  WEB_ONLY_MODE: "⚠️  Không có TELEGRAM_BOT_TOKEN — chạy ở chế độ Web UI only.",
+  WEB_ONLY_READY: "🌐 Chế độ Web UI only — Telegram đã bị tắt.",
   GEMINI_INIT_ERROR: "❌ Lỗi khi khởi tạo ACP-Provider:",
   SHUTTING_DOWN: "\nĐang tắt GEMIBOT và Bot Telegram...",
   GEMINI_PROCESS_HALT: "Dừng Bot Telegram để đảm bảo an toàn.",

@@ -5,6 +5,7 @@ const { MESSAGES, getBotName } = require("./src/constants");
 const gemini = require("./src/gemini");
 const {
   bot,
+  TELEGRAM_ENABLED,
   setupMessageHandler,
   getLastChatId,
   initBotInfo,
@@ -37,35 +38,45 @@ async function main() {
     const injectionPromise = injectInitContext();
 
     // Song song: lấy thông tin bot để xử lý mention trong group
-    await initBotInfo();
+    if (TELEGRAM_ENABLED) {
+      await initBotInfo();
+    }
 
     console.log(MESSAGES.CONNECTED_OK);
     console.log(`🤖 Provider: ${gemini.getCurrentProvider()}`);
     console.log(`🔄 Session ID: ${gemini.getSessionId()}`);
     if (initialModel) console.log(`🧠 Model: ${initialModel}`);
-    console.log(MESSAGES.BOT_READY);
+    console.log(TELEGRAM_ENABLED ? MESSAGES.BOT_READY : MESSAGES.WEB_ONLY_READY);
 
     // Đăng ký menu slash command (không cần đợi)
-    bot
-      .setMyCommands(getCommandMenu())
-      .then(() => log(`[INIT] Slash command menu registered`))
-      .catch((err) => log(`[INIT] setMyCommands failed`, err.message));
+    if (TELEGRAM_ENABLED) {
+      bot
+        .setMyCommands(getCommandMenu())
+        .then(() => log(`[INIT] Slash command menu registered`))
+        .catch((err) => log(`[INIT] setMyCommands failed`, err.message));
+    }
 
     // Khi injection xong → attach handler + cron + web UI + thông báo online
     injectionPromise
       .then(() => {
         log(`[INIT] Init context injected, bot fully ready`);
-        setupMessageHandler(enqueue, gemini.getSessionId, handleCommand);
-        scheduleAllCrons();
+
+        // Cron chỉ phục vụ Telegram → bỏ qua khi chạy Web UI only
+        if (TELEGRAM_ENABLED) {
+          setupMessageHandler(enqueue, gemini.getSessionId, handleCommand);
+          scheduleAllCrons();
+        }
 
         const webPort = parseInt(process.env.WEB_UI_PORT || "8686", 10);
         const webHost = process.env.WEB_UI_HOST || "127.0.0.1";
         webui.start(webPort, webHost);
 
-        const lastChatId = getLastChatId();
-        if (lastChatId) {
-          bot.sendMessage(lastChatId, `${getBotName()} ${MESSAGES.ONLINE}`);
-          log(`[INIT] Sent online notification to chatId=${lastChatId}`);
+        if (TELEGRAM_ENABLED) {
+          const lastChatId = getLastChatId();
+          if (lastChatId) {
+            bot.sendMessage(lastChatId, `${getBotName()} ${MESSAGES.ONLINE}`);
+            log(`[INIT] Sent online notification to chatId=${lastChatId}`);
+          }
         }
       })
       .catch((err) => {
