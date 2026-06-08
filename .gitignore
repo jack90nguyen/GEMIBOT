@@ -4,6 +4,7 @@ temp/
 logs/
 daemon/
 .gemini/
+.claude/
 
 # Files App
 RULES.md
