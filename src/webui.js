@@ -13,6 +13,12 @@ const { injectInitContext, clearSession } = require("./initContext");
 
 const WEB_CHAT_ID = "__web__";
 
+// Files viewable + editable from the Web UI. Whitelist only — no arbitrary paths.
+const EDITABLE_DOCS = {
+  memory: path.join(process.cwd(), "MEMORY.md"),
+  rules: path.join(process.cwd(), "RULES.md"),
+};
+
 // ─── Auth ───────────────────────────────────────────────────────────────────
 // Bật khi WEB_UI_PASSWORD được set; cookie HttpOnly giữ đăng nhập 30 ngày.
 const AUTH_COOKIE = "web_auth";
@@ -241,6 +247,36 @@ function start(port, host) {
   app.delete("/api/history", async (req, res) => {
     await history.clearHistory();
     res.json({ ok: true });
+  });
+
+  // ─── Editable docs (MEMORY.md / RULES.md) ──────────────────────────────────
+
+  app.get("/api/docs/:name", (req, res) => {
+    const file = EDITABLE_DOCS[req.params.name];
+    if (!file) return res.status(404).json({ error: "unknown doc" });
+    const content = fs.existsSync(file) ? fs.readFileSync(file, "utf-8") : "";
+    res.json({ name: req.params.name, content });
+  });
+
+  app.put("/api/docs/:name", async (req, res) => {
+    const file = EDITABLE_DOCS[req.params.name];
+    if (!file) return res.status(404).json({ error: "unknown doc" });
+    const { content } = req.body || {};
+    if (typeof content !== "string") {
+      return res.status(400).json({ error: "content must be a string" });
+    }
+    try {
+      fs.writeFileSync(file, content, "utf-8");
+      log(`[WEB] Saved ${req.params.name} (${content.length} chars)`);
+      // RULES.md feeds the session init context — re-inject so it applies now
+      if (req.params.name === "rules") {
+        await injectInitContext();
+        log(`[WEB] Re-injected init context after RULES.md update`);
+      }
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // ─── Cron management ───────────────────────────────────────────────────────

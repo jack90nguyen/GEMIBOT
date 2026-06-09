@@ -372,6 +372,21 @@
   .form-actions .primary { background: var(--accent); color: white; }
   .form-actions .secondary { background: var(--border); color: var(--text); }
 
+  /* Docs editor */
+  .docs-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .docs-tab {
+    background: var(--border);
+    color: var(--text);
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  .docs-tab.active { background: var(--accent); color: #fff; }
+  #docsEditor { min-height: 340px; resize: vertical; line-height: 1.5; }
+
   /* Cron list */
   .cron-list-title {
     font-size: 13px;
@@ -498,6 +513,7 @@
     <button class="icon" id="modelBtn" title="Change model"></button>
     <button class="icon" id="resetBtn" title="Reset AI Agent session"></button>
     <button class="icon" id="cronBtn" title="Manage cron jobs"></button>
+    <button class="icon" id="docsBtn" title="Edit MEMORY.md / RULES.md"></button>
     <button class="icon" id="themeBtn" title="Toggle theme"></button>
     <button class="icon" id="clearBtn" title="Clear chat history"></button>
   </span>
@@ -571,6 +587,31 @@
   </div>
 </div>
 
+<!-- ─── Docs modal (MEMORY.md / RULES.md) ──────────────────── -->
+<div class="modal-overlay" id="docsModal">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <span id="docsModalTitle">Files</span>
+      <button id="docsCloseBtn" title="Close"></button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-error" id="docsError"></div>
+      <div class="docs-tabs">
+        <button class="docs-tab active" data-doc="memory">MEMORY.md</button>
+        <button class="docs-tab" data-doc="rules">RULES.md</button>
+      </div>
+      <div class="field">
+        <textarea id="docsEditor" spellcheck="false" placeholder="(empty)"></textarea>
+        <span class="hint" id="docsHint"></span>
+      </div>
+      <div class="form-actions">
+        <button class="secondary" id="docsCancelBtn">Cancel</button>
+        <button class="primary" id="docsSaveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ─── Login modal ────────────────────────────────────────── -->
 <div class="modal-overlay" id="loginModal">
   <div class="modal-panel" style="max-width:380px;">
@@ -616,6 +657,7 @@ const ICON_PATHS = {
   check: '<path d="M20 6L9 17l-5-5"/>',
   refresh: '<path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>',
   cpu: '<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/>',
+  file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h8M9 9H8"/>',
 };
 function icon(name, extraClass = "") {
   const body = ICON_PATHS[name] || "";
@@ -1137,6 +1179,9 @@ $("#resetBtn").innerHTML = icon("refresh");
 $("#modelBtn").innerHTML = icon("cpu");
 $("#cronCloseBtn").innerHTML = icon("close");
 $("#modelCloseBtn").innerHTML = icon("close");
+$("#docsBtn").innerHTML = icon("file");
+$("#docsCloseBtn").innerHTML = icon("close");
+$("#docsModalTitle").innerHTML = icon("file") + " Files";
 $("#cronModalTitle").innerHTML = icon("clock") + " Cron Jobs";
 $("#modelModalTitle").innerHTML = icon("cpu") + " Model";
 
@@ -1237,6 +1282,88 @@ modelInput.addEventListener("keydown", (e) => {
     $("#modelSwitchBtn").click();
   }
 });
+
+// ─── Docs editor (MEMORY.md / RULES.md) ────────────────────────
+const docsModal = $("#docsModal");
+const docsEditor = $("#docsEditor");
+const docsError = $("#docsError");
+const docsHint = $("#docsHint");
+const DOC_LABELS = { memory: "MEMORY.md", rules: "RULES.md" };
+const DOC_HINTS = {
+  memory: "Long-term knowledge the AI reads on startup.",
+  rules: "Personalisation rules — re-applied to the running session on save.",
+};
+let activeDoc = "memory";
+let docsLoaded = ""; // last loaded content, to detect unsaved edits
+
+function docsDirty() { return docsEditor.value !== docsLoaded; }
+
+async function loadDoc(name) {
+  docsError.classList.remove("show");
+  activeDoc = name;
+  document.querySelectorAll(".docs-tab").forEach((b) =>
+    b.classList.toggle("active", b.dataset.doc === name));
+  docsHint.textContent = DOC_HINTS[name] || "";
+  docsEditor.value = "Loading…";
+  docsEditor.disabled = true;
+  try {
+    const res = await fetch(`/api/docs/${name}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to load");
+    docsEditor.value = data.content;
+    docsLoaded = data.content;
+  } catch (err) {
+    docsEditor.value = "";
+    docsLoaded = "";
+    docsError.textContent = err.message;
+    docsError.classList.add("show");
+  } finally {
+    docsEditor.disabled = false;
+  }
+}
+
+$("#docsBtn").onclick = () => {
+  docsModal.classList.add("open");
+  loadDoc(activeDoc);
+};
+$("#docsCloseBtn").onclick = () => docsModal.classList.remove("open");
+$("#docsCancelBtn").onclick = () => docsModal.classList.remove("open");
+docsModal.onclick = (e) => {
+  if (e.target === docsModal) docsModal.classList.remove("open");
+};
+
+document.querySelectorAll(".docs-tab").forEach((btn) => {
+  btn.onclick = () => {
+    if (btn.dataset.doc === activeDoc) return;
+    if (docsDirty() && !confirm("Discard unsaved changes?")) return;
+    loadDoc(btn.dataset.doc);
+  };
+});
+
+$("#docsSaveBtn").onclick = async () => {
+  docsError.classList.remove("show");
+  const btn = $("#docsSaveBtn");
+  btn.disabled = true;
+  const label = DOC_LABELS[activeDoc];
+  setStatus(`Saving ${label}...`);
+  try {
+    const res = await fetch(`/api/docs/${activeDoc}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: docsEditor.value }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to save");
+    docsLoaded = docsEditor.value;
+    setStatus(`${label} saved`);
+  } catch (err) {
+    docsError.textContent = err.message;
+    docsError.classList.add("show");
+    setStatus("Error saving");
+  } finally {
+    btn.disabled = false;
+  }
+};
 
 // ─── Reset button ──────────────────────────────────────────────
 
