@@ -66,16 +66,35 @@ async function sendPromptWithRetry(promptText, reply) {
 // ─── Reply abstraction ────────────────────────────────────────────────────────
 // reply = { text(content, {markdown}), file(absPath), error(msg), done() }
 
+// Telegram giới hạn 4096 ký tự/tin nhắn → cắt text dài thành nhiều đoạn,
+// ưu tiên cắt tại dấu xuống dòng để hạn chế vỡ định dạng Markdown.
+const TELEGRAM_MAX_LEN = 4096;
+
+function splitMessage(text, limit = TELEGRAM_MAX_LEN) {
+  if (!text || text.length <= limit) return [text];
+  const chunks = [];
+  let rest = text;
+  while (rest.length > limit) {
+    let cut = rest.lastIndexOf("\n", limit);
+    if (cut <= 0) cut = limit; // không có newline trong cửa sổ → cắt cứng
+    chunks.push(rest.slice(0, cut));
+    rest = rest.slice(cut).replace(/^\n/, "");
+  }
+  if (rest.length) chunks.push(rest);
+  return chunks;
+}
+
 function defaultTelegramReply(chatId) {
+  const send = async (content, opts = {}) => {
+    for (const chunk of splitMessage(content)) {
+      await bot.sendMessage(chatId, chunk, opts).catch(() => bot.sendMessage(chatId, chunk));
+    }
+  };
   return {
-    text: (content, { markdown = false } = {}) => {
-      const opts = markdown ? { parse_mode: "Markdown" } : {};
-      return bot
-        .sendMessage(chatId, content, opts)
-        .catch(() => bot.sendMessage(chatId, content));
-    },
+    text: (content, { markdown = false } = {}) =>
+      send(content, markdown ? { parse_mode: "Markdown" } : {}),
     file: (filePath) => sendFileToTelegram(chatId, filePath),
-    error: (msg) => bot.sendMessage(chatId, `❌ Lỗi khi giao tiếp với AI Agent:\n${msg}`),
+    error: (msg) => send(`❌ Lỗi khi giao tiếp với AI Agent:\n${msg}`),
     done: () => {},
   };
 }
