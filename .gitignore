@@ -1,10 +1,15 @@
 # Folders
 node_modules/
-temp/
 logs/
 daemon/
 .gemini/
 .claude/
+
+# Keep folder, ignore contents
+files/*
+!files/.gitkeep
+temp/*
+!temp/.gitkeep
 
 # Files App
 RULES.md
