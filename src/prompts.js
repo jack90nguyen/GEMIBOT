@@ -9,6 +9,7 @@ When user wants to schedule / create reminders / recurring tasks:
 - Analyze the request and create an appropriate cron expression
 - Append the following tag at the end of your response:
 [CRONJOB_ADD]{"cron":"<cron_expression>","prompt":"<prompt_to_run>","description":"<short_description>"}[/CRONJOB_ADD]
+- IMPORTANT: one schedule = one tag. If the user needs N schedules, you MUST append exactly N separate [CRONJOB_ADD] tags — never merge multiple schedules into one tag, and never describe a schedule in words without also emitting its tag. No tag = no job created.
 
 When user wants to view scheduled jobs:
 - Append the following tag at the end of your response:
