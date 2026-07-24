@@ -11,7 +11,7 @@ const { addCron, removeCron, getCronsForChat, formatCronList } = require("./cron
 
 function parseSystemTags(text, chatId) {
   let cleanText = text;
-  let systemReply = null;
+  const replies = [];
   const filesToSend = [];
 
   // ── SEND_FILE ──────────────────────────────────────────────────────────────
@@ -22,34 +22,54 @@ function parseSystemTags(text, chatId) {
     filesToSend.push(sfMatch[1].trim());
   }
 
-  // ── CRONJOB_ADD ───────────────────────────────────────────────────────────
-  const addMatch = text.match(/\[CRONJOB_ADD\]([\s\S]*?)\[\/CRONJOB_ADD\]/);
-  if (addMatch) {
+  // ── CRONJOB_ADD (nhiều tag → nhiều job) ─────────────────────────────────────
+  const addRegex = /\[CRONJOB_ADD\]([\s\S]*?)\[\/CRONJOB_ADD\]/g;
+  let addMatch;
+  const addedIds = [];
+  while ((addMatch = addRegex.exec(text)) !== null) {
     cleanText = cleanText.replace(addMatch[0], "").trim();
     try {
       const data = JSON.parse(addMatch[1].trim());
       const job = addCron(chatId, data);
-      systemReply = `✅ Đã lưu lịch: *${job.description}*\nID: \`${job.id}\` | Cron: \`${job.cron}\``;
+      addedIds.push(job.id);
+      replies.push(`✅ Đã lưu lịch: *${job.description}*\nID: \`${job.id}\` | Cron: \`${job.cron}\``);
       log(`[CRON] Added job id=${job.id} for chatId=${chatId}`);
     } catch (e) {
-      systemReply = `❌ Lỗi khi tạo cronjob: ${e.message}`;
+      replies.push(`❌ Lỗi khi tạo cronjob: ${e.message}`);
       log(`[CRON] Failed to parse CRONJOB_ADD`, e);
     }
   }
 
-  // ── CRONJOB_DEL ───────────────────────────────────────────────────────────
-  const delMatch = text.match(/\[CRONJOB_DEL\]([\s\S]*?)\[\/CRONJOB_DEL\]/);
-  if (delMatch) {
+  // Đọc lại crons.json để xác nhận các job vừa tạo đã thực sự được ghi
+  if (addedIds.length > 0) {
+    const saved = getCronsForChat(chatId);
+    const missing = addedIds.filter((id) => !saved.some((j) => j.id === id));
+    if (missing.length === 0) {
+      replies.push(
+        `📋 Xác nhận: đã ghi ${addedIds.length} lịch vào crons.json (tổng ${saved.length} lịch đang active).`,
+      );
+    } else {
+      replies.push(`⚠️ ${missing.length}/${addedIds.length} lịch không thấy trong crons.json sau khi lưu!`);
+      log(`[CRON] Verify failed, missing ids: ${missing.join(", ")}`);
+    }
+  }
+
+  // ── CRONJOB_DEL (nhiều tag → xóa nhiều job) ─────────────────────────────────
+  const delRegex = /\[CRONJOB_DEL\]([\s\S]*?)\[\/CRONJOB_DEL\]/g;
+  let delMatch;
+  while ((delMatch = delRegex.exec(text)) !== null) {
     cleanText = cleanText.replace(delMatch[0], "").trim();
     try {
       const { id } = JSON.parse(delMatch[1].trim());
       const removed = removeCron(id);
-      systemReply = removed
-        ? `✅ Đã xóa cronjob: *${removed.description}*`
-        : `❌ Không tìm thấy cronjob với ID \`${id}\``;
+      replies.push(
+        removed
+          ? `✅ Đã xóa cronjob: *${removed.description}*`
+          : `❌ Không tìm thấy cronjob với ID \`${id}\``,
+      );
       log(`[CRON] Deleted job id=${id}`);
     } catch (e) {
-      systemReply = `❌ Lỗi khi xóa cronjob: ${e.message}`;
+      replies.push(`❌ Lỗi khi xóa cronjob: ${e.message}`);
     }
   }
 
@@ -58,9 +78,10 @@ function parseSystemTags(text, chatId) {
   if (listMatch) {
     cleanText = cleanText.replace(listMatch[0], "").trim();
     const jobs = getCronsForChat(chatId);
-    systemReply = formatCronList(jobs);
+    replies.push(formatCronList(jobs));
   }
 
+  const systemReply = replies.length > 0 ? replies.join("\n\n") : null;
   return { cleanText, systemReply, filesToSend };
 }
 
