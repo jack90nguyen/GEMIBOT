@@ -3,6 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
 const { randomUUID, createHash, timingSafeEqual } = require("crypto");
+const { execFile } = require("child_process");
 const { log } = require("./logger");
 const { enqueue } = require("./queue");
 const { appendSession, loadState, saveState } = require("./telegram");
@@ -10,6 +11,8 @@ const history = require("./webHistory");
 const cronjob = require("./cronjob");
 const gemini = require("./gemini");
 const { injectInitContext, clearSession } = require("./initContext");
+
+const DB_SCRIPT = path.join(process.cwd(), ".claude/skills/personal-db/db.sh");
 
 const WEB_CHAT_ID = "__web__";
 
@@ -161,7 +164,11 @@ function start(port, host) {
   });
 
   // Chặn mọi API/data còn lại nếu chưa đăng nhập
-  app.use("/api", requireAuth);
+  // Skip /api/memory — có requireMemoryAuth riêng (Bearer token + cookie)
+  app.use("/api", (req, res, next) => {
+    if (req.path.startsWith("/memory")) return next();
+    requireAuth(req, res, next);
+  });
   app.use("/files", requireAuth);
 
   // Serve uploaded files for inline preview (images) and download
@@ -274,6 +281,256 @@ function start(port, host) {
         log(`[WEB] Re-injected init context after RULES.md update`);
       }
       res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ─── Memory API (shared memory for external AI agents) ─────────────────────
+
+  const MEMORY_TOKEN = process.env.MEMORY_API_TOKEN || "";
+
+  function requireMemoryAuth(req, res, next) {
+    // Accept both Bearer token and webapp cookie
+    const authHeader = req.headers.authorization || "";
+    if (authHeader.startsWith("Bearer ") && MEMORY_TOKEN) {
+      const token = authHeader.slice(7);
+      if (token === MEMORY_TOKEN) return next();
+    }
+    // Fallback to cookie auth (for webapp users)
+    if (isAuthed(req)) return next();
+    res.status(401).json({ error: "unauthorized" });
+  }
+
+  app.use("/api/memory", requireMemoryAuth);
+
+  // Helper: run db.sh action and return stdout
+  function runDbScript(args) {
+    return new Promise((resolve, reject) => {
+      execFile("bash", [DB_SCRIPT, ...args], { timeout: 10000 }, (err, stdout, stderr) => {
+        if (err) return reject(new Error(stderr || err.message));
+        resolve(stdout);
+      });
+    });
+  }
+
+  // GET /api/memory — read full MEMORY.md or a specific layer
+  // ?layer=L1|L2|L3 (optional, defaults to full file)
+  app.get("/api/memory", (req, res) => {
+    const memFile = EDITABLE_DOCS.memory;
+    if (!fs.existsSync(memFile)) return res.json({ content: "" });
+    const full = fs.readFileSync(memFile, "utf-8");
+    const layer = req.query.layer;
+    if (!layer) return res.json({ content: full });
+
+    // Extract specific layer section
+    const pattern = new RegExp(`^## ${layer}\\b.*$`, "m");
+    const match = full.match(pattern);
+    if (!match) return res.status(400).json({ content: "", error: `Layer ${layer} not found` });
+
+    const start = match.index;
+    // Find next ## heading or end of file
+    const rest = full.slice(start + match[0].length);
+    const nextHeading = rest.match(/^## /m);
+    const section = nextHeading
+      ? full.slice(start, start + match[0].length + nextHeading.index)
+      : full.slice(start);
+
+    res.json({ layer, content: section.trim() });
+  });
+
+  // GET /api/memory/facts — read L1 facts only
+  app.get("/api/memory/facts", (req, res) => {
+    const memFile = EDITABLE_DOCS.memory;
+    if (!fs.existsSync(memFile)) return res.json({ facts: [] });
+    const full = fs.readFileSync(memFile, "utf-8");
+
+    // Extract L1 section content (after heading, before next ##)
+    const l1Match = full.match(/^## L1\b.*$/m);
+    if (!l1Match) return res.json({ facts: [] });
+
+    const start = l1Match.index + l1Match[0].length;
+    const rest = full.slice(start);
+    const nextHeading = rest.match(/^## /m);
+    const section = nextHeading ? rest.slice(0, nextHeading.index) : rest;
+
+    // Parse bullet points as facts
+    const facts = section
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.startsWith("- "))
+      .map((l) => l.slice(2));
+
+    res.json({ facts });
+  });
+
+  // POST /api/memory/facts — append new facts to L1
+  // Body: { facts: ["fact1", "fact2"] } or { fact: "single fact" }
+  app.post("/api/memory/facts", (req, res) => {
+    const { facts, fact } = req.body || {};
+    const newFacts = facts || (fact ? [fact] : []);
+    if (!newFacts.length) {
+      return res.status(400).json({ error: "facts array or fact string required" });
+    }
+
+    const memFile = EDITABLE_DOCS.memory;
+    if (!fs.existsSync(memFile)) {
+      return res.status(500).json({ error: "MEMORY.md not found" });
+    }
+    let full = fs.readFileSync(memFile, "utf-8");
+
+    // Find L1 section
+    const l1Match = full.match(/^## L1\b.*$/m);
+    if (!l1Match) {
+      return res.status(500).json({ error: "L1 section not found in MEMORY.md" });
+    }
+
+    // Find insertion point: end of L1 section (before next ## or EOF)
+    const afterHeading = l1Match.index + l1Match[0].length;
+    const rest = full.slice(afterHeading);
+    const nextHeading = rest.match(/^## /m);
+    const insertAt = nextHeading
+      ? afterHeading + nextHeading.index
+      : full.length;
+
+    // Build new lines
+    const lines = newFacts.map((f) => `- ${f}`).join("\n");
+    const before = full.slice(0, insertAt).trimEnd();
+    const after = full.slice(insertAt);
+
+    full = before + "\n" + lines + "\n" + after;
+
+    // Clean up placeholder text if present
+    full = full.replace(/\n_Chưa có facts.*_\n?/, "\n");
+
+    fs.writeFileSync(memFile, full, "utf-8");
+    log(`[WEB] Memory: added ${newFacts.length} fact(s) to L1`);
+    res.json({ ok: true, added: newFacts.length });
+  });
+
+  // GET /api/memory/journal — search/list journal entries
+  // ?q=keyword&date=2026-08-08&category=work&limit=20
+  app.get("/api/memory/journal", async (req, res) => {
+    try {
+      const { q, date, category, limit = "20" } = req.query;
+      let result;
+      if (q) {
+        result = await runDbScript(["search-journal", q, category || "", limit]);
+      } else if (date) {
+        result = await runDbScript(["list-journal", date, category || "", limit]);
+      } else {
+        result = await runDbScript(["list-journal", "", category || "", limit]);
+      }
+      res.json({ raw: result.trim() });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/memory/journal — add a journal entry
+  // Body: { content, summary?, category?, tags?, mood? }
+  app.post("/api/memory/journal", async (req, res) => {
+    const { content, summary = "", category = "work", tags = "", mood = "" } = req.body || {};
+    if (!content) {
+      return res.status(400).json({ error: "content required" });
+    }
+    try {
+      const result = await runDbScript(["add-journal", content, summary, category, tags, mood]);
+      const idMatch = result.match(/JOURNAL_ADDED_ID=(\d+)/);
+      const id = idMatch ? parseInt(idMatch[1], 10) : null;
+      log(`[WEB] Memory: journal entry added (id=${id})`);
+      res.json({ ok: true, id, raw: result.trim() });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /api/memory/journal/:id — read a single journal entry (full content)
+  app.get("/api/memory/journal/:id", async (req, res) => {
+    try {
+      const result = await runDbScript(["read-journal", req.params.id]);
+      if (!result.trim()) {
+        return res.status(404).json({ error: "journal entry not found", id: req.params.id });
+      }
+      res.json({ raw: result.trim() });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /api/memory/todos — list todos
+  // ?filter=pending|done|all&category=work
+  app.get("/api/memory/todos", async (req, res) => {
+    try {
+      const { filter = "pending", category = "" } = req.query;
+      const result = await runDbScript(["list-todo", filter, category]);
+      res.json({ raw: result.trim() });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/memory/todos — create a new todo
+  app.post("/api/memory/todos", async (req, res) => {
+    try {
+      const { title, description, due_date, due_time, category } = req.body || {};
+      if (!title) return res.status(400).json({ error: "title is required" });
+      const result = await runDbScript(["add-todo", title, description || "", due_date || "", due_time || "", category || ""]);
+      const idMatch = result.match(/TODO_ADDED_ID=(\d+)/);
+      const id = idMatch ? parseInt(idMatch[1], 10) : null;
+      res.json({ ok: true, id, raw: result.trim() });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // PATCH /api/memory/todos/:id/done — mark todo as done
+  app.patch("/api/memory/todos/:id/done", async (req, res) => {
+    try {
+      const result = await runDbScript(["done-todo", req.params.id]);
+      if (result.includes("NOT_FOUND")) {
+        return res.status(404).json({ error: "todo not found", id: req.params.id });
+      }
+      res.json({ ok: true, raw: result.trim() });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // PATCH /api/memory/todos/:id/undone — reopen todo
+  app.patch("/api/memory/todos/:id/undone", async (req, res) => {
+    try {
+      const result = await runDbScript(["undone-todo", req.params.id]);
+      if (result.includes("NOT_FOUND")) {
+        return res.status(404).json({ error: "todo not found", id: req.params.id });
+      }
+      res.json({ ok: true, raw: result.trim() });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // DELETE /api/memory/todos/:id — delete a todo
+  app.delete("/api/memory/todos/:id", async (req, res) => {
+    try {
+      const result = await runDbScript(["delete-todo", req.params.id]);
+      if (result.includes("NOT_FOUND")) {
+        return res.status(404).json({ error: "todo not found", id: req.params.id });
+      }
+      res.json({ ok: true, raw: result.trim() });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // DELETE /api/memory/journal/:id — delete a journal entry
+  app.delete("/api/memory/journal/:id", async (req, res) => {
+    try {
+      const result = await runDbScript(["delete-journal", req.params.id]);
+      if (result.includes("NOT_FOUND")) {
+        return res.status(404).json({ error: "journal entry not found", id: req.params.id });
+      }
+      res.json({ ok: true, raw: result.trim() });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

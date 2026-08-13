@@ -1,8 +1,20 @@
+const { execFile } = require("child_process");
+const path = require("path");
 const { log } = require("./logger");
 const { MESSAGES, getReactionEmoji } = require("./constants");
 const { sendPrompt } = require("./gemini");
 const { bot, reactToMessage, sendFileToTelegram } = require("./telegram");
 const { parseSystemTags } = require("./tags");
+
+// ─── Conversation logging ────────────────────────────────────────────────────
+const DB_SCRIPT = path.join(process.cwd(), ".claude/skills/personal-db/db.sh");
+
+function logConversation(role, content, source) {
+  if (!content || content.length === 0) return;
+  execFile("bash", [DB_SCRIPT, "add-conversation", role, content, source], { timeout: 5000 }, (err) => {
+    if (err) log(`[CONV] Failed to log ${role} message: ${err.message}`);
+  });
+}
 
 const messageQueue = [];
 let isProcessing = false;
@@ -103,8 +115,13 @@ function defaultTelegramReply(chatId) {
 
 async function handleJob(job) {
   const { chatId, promptText, prefix = "", reply } = job;
+  const isCron = prefix.startsWith("⏰");
+  const source = chatId === "__web__" ? "web" : "telegram";
 
   try {
+    // Log user message (skip cronjob prompts)
+    if (!isCron) logConversation("user", promptText, source);
+
     const { text: responseText } = await sendPromptWithRetry(promptText, reply);
 
     if (!responseText) {
@@ -114,6 +131,9 @@ async function handleJob(job) {
     }
 
     const { cleanText, systemReply, filesToSend } = parseSystemTags(responseText, chatId);
+
+    // Log bot response (skip cronjob responses)
+    if (!isCron && cleanText) logConversation("bot", cleanText, source);
 
     if (cleanText) {
       log(`[QUEUE] Gửi phản hồi, length=${cleanText.length}`);

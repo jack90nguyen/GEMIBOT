@@ -4,6 +4,7 @@ logs/
 daemon/
 .gemini/
 .claude/
+data/
 
 # Keep folder, ignore contents
 files/*
