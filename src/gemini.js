@@ -179,13 +179,24 @@ async function applyPermissionMode() {
   log(`[ACP] Permission mode set: ${currentProvider.permissionMode}`);
 }
 
-// Gemini nhận model qua CLI `-m` lúc spawn (buildSpawn). Claude/Codex set qua ACP.
+// Gemini nhận model qua CLI `-m` lúc spawn (buildSpawn).
+// Codex set qua session/set_model, Claude qua session/set_config_option.
 async function applyModel() {
-  if (currentProvider.modelVia !== "acp" || !currentModel || !currentSessionId) return;
-  await sendToGemini("session/set_model", {
-    sessionId: currentSessionId,
-    modelId: currentModel,
-  });
+  if (!currentModel || !currentSessionId) return;
+  if (currentProvider.modelVia === "acp") {
+    await sendToGemini("session/set_model", {
+      sessionId: currentSessionId,
+      modelId: currentModel,
+    });
+  } else if (currentProvider.modelVia === "config") {
+    await sendToGemini("session/set_config_option", {
+      sessionId: currentSessionId,
+      configId: "model",
+      value: currentModel,
+    });
+  } else {
+    return;
+  }
   log(`[ACP] Model set: ${currentModel}`);
 }
 

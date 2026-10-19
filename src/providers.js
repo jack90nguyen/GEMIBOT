@@ -15,14 +15,15 @@ const PROVIDERS = {
   claude: {
     name: "claude",
     label: "Claude Code CLI",
-    // Tương đương `claude --dangerously-skip-permissions`: adapter claude-code-acp
+    // Tương đương `claude --dangerously-skip-permissions`: adapter claude-agent-acp
     // không nhận cờ CLI, nên phải set permission mode qua ACP sau khi session/new.
     permissionMode: "bypassPermissions",
-    // Model set qua ACP (session/set_model) sau session/new, không qua CLI.
-    modelVia: "acp",
+    // Model set qua ACP (session/set_config_option, configId "model") sau session/new.
+    // Adapter claude-agent-acp đã bỏ session/set_model.
+    modelVia: "config",
     buildSpawn() {
       return {
-        command: path.join(ACP_BIN_DIR, "claude-code-acp"),
+        command: path.join(ACP_BIN_DIR, "claude-agent-acp"),
         args: [],
       };
     },
