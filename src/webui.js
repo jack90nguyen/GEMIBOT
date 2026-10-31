@@ -1,4 +1,5 @@
 const express = require("express");
+const os = require("os");
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
@@ -12,7 +13,7 @@ const cronjob = require("./cronjob");
 const gemini = require("./gemini");
 const { injectInitContext, clearSession } = require("./initContext");
 
-const DB_SCRIPT = path.join(process.cwd(), ".claude/skills/personal-db/db.sh");
+const DB_SCRIPT = path.join(os.homedir(), ".agents/skills/personal-db/db.sh");
 
 const WEB_CHAT_ID = "__web__";
 

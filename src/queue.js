@@ -1,4 +1,5 @@
 const { execFile } = require("child_process");
+const os = require("os");
 const path = require("path");
 const { log } = require("./logger");
 const { MESSAGES, getReactionEmoji } = require("./constants");
@@ -7,7 +8,7 @@ const { bot, reactToMessage, sendFileToTelegram } = require("./telegram");
 const { parseSystemTags } = require("./tags");
 
 // ─── Conversation logging ────────────────────────────────────────────────────
-const DB_SCRIPT = path.join(process.cwd(), ".claude/skills/personal-db/db.sh");
+const DB_SCRIPT = path.join(os.homedir(), ".agents/skills/personal-db/db.sh");
 
 function logConversation(role, content, source) {
   if (!content || content.length === 0) return;
