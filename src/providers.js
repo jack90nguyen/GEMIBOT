@@ -28,6 +28,22 @@ const PROVIDERS = {
       };
     },
   },
+  pi: {
+    name: "pi",
+    label: "Pi Agent",
+    // Không set permissionMode: pi không hỏi permission, và session/set_mode của
+    // pi-acp là thinking level chứ không phải permission.
+    // Model dạng "provider/model" (vd google/gemini-4-argon), set qua set_config_option.
+    modelVia: "config",
+    buildSpawn() {
+      return {
+        command: path.join(ACP_BIN_DIR, "pi-acp"),
+        args: [],
+        // pi-acp mặc định gọi `pi` trong PATH — trỏ về bản cài local.
+        env: { PI_ACP_PI_COMMAND: path.join(ACP_BIN_DIR, "pi") },
+      };
+    },
+  },
   codex: {
     name: "codex",
     label: "Codex CLI",

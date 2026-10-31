@@ -26,6 +26,7 @@ Cầu nối giữa **AI CLI provider** (Gemini CLI, Claude Code CLI hoặc Codex
   - [Gemini CLI](https://geminicli.com) đã cài và đăng nhập (`gemini login`) — cho `PROVIDER=gemini`
   - [Claude Code CLI](https://docs.claude.com/en/docs/claude-code) đã cài và đăng nhập (`claude login`) — cho `PROVIDER=claude`. Adapter `@zed-industries/claude-code-acp` được cài tự động qua `npm install`.
   - [Codex CLI](https://developers.openai.com/codex) đã đăng nhập (`codex login`) hoặc đặt `CODEX_API_KEY` — cho `PROVIDER=codex`. Adapter `@zed-industries/codex-acp` được cài tự động qua `npm install`.
+  - [Pi Agent](https://pi.dev) — cho `PROVIDER=pi`. `pi` và adapter `pi-acp` được cài tự động qua `npm install` (cần Node.js ≥ 22.19). Auth bằng API key trong `.env` (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, ...).
 
 ## Cài đặt
 
@@ -58,13 +59,19 @@ TELEGRAM_BOT_TOKEN=your_token_here
 #            `claude --dangerously-skip-permissions`)
 # - codex:  dùng Codex CLI qua adapter @zed-industries/codex-acp
 #           (cần `codex login` hoặc CODEX_API_KEY; tự động bật full-access tương đương yolo)
+# - pi:     dùng Pi Agent qua adapter pi-acp, auth bằng API key của provider
+#           (pi không hỏi permission nên không cần bypass)
 PROVIDER=gemini
+
+# Bắt buộc khi PROVIDER=pi — API key của LLM provider muốn dùng
+# GEMINI_API_KEY=
 
 # Tuỳ chọn — model mặc định khi khởi động, dùng chung cho mọi provider.
 # Để trống = mỗi provider tự dùng model mặc định. Ví dụ:
 #   gemini: gemini-3-flash-preview | gemini-3-pro-preview | auto-gemini-3
 #   claude: default (Opus) | sonnet | haiku
 #   codex:  gpt-5.5 | gpt-5.4 | gpt-5.4-mini | gpt-5.3-codex
+#   pi:     google/gemini-4-argon | google/gemini-3.8-flash | anthropic/claude-opus-5-5
 PROVIDER_MODEL=
 
 # Tuỳ chọn — tên hiển thị của bot trong tin nhắn (mặc định: ONEBOT 🤖)

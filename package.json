@@ -17,12 +17,14 @@
   "type": "commonjs",
   "dependencies": {
     "@agentclientprotocol/claude-agent-acp": "^0.93.0",
+    "@earendil-works/pi-coding-agent": "1.4.0",
     "@zed-industries/codex-acp": "^0.15.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "multer": "^2.1.1",
     "node-cron": "^4.2.1",
-    "node-telegram-bot-api": "^0.67.0"
+    "node-telegram-bot-api": "^0.67.0",
+    "pi-acp": "0.0.34"
   },
   "optionalDependencies": {
     "node-windows": "^1.0.0"

@@ -77,10 +77,11 @@ function attachReadline() {
 
 function spawnGemini(model) {
   currentModel = model || null;
-  const { command, args } = currentProvider.buildSpawn({ model: currentModel });
+  const { command, args, env } = currentProvider.buildSpawn({ model: currentModel });
 
   geminiProcess = spawn(command, args, {
     stdio: ["pipe", "pipe", "inherit"],
+    env: { ...process.env, ...env },
     detached: true, // tạo process group riêng để kill được cả con cháu khi restart
   });
 
